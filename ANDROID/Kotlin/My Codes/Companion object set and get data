@@ -1,0 +1,8 @@
+  //inside any class
+  companion object SearchData{
+        private var searchString: String = ""
+        fun setSearchData(etSearchString: String){
+            searchString = etSearchString
+        }
+        fun getSearchData() = searchString
+    }

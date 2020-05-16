@@ -1,0 +1,708 @@
+package com.cbc.View.chats
+
+import android.os.Bundle
+import android.text.Html
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatEditText
+import androidx.appcompat.widget.AppCompatImageView
+import androidx.appcompat.widget.AppCompatTextView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.cbc.R
+import com.cbc.View.chat.Constants
+import com.wajahatkarim3.chaty.MessageModel
+import com.wajahatkarim3.chaty.UserModel
+import io.socket.client.IO
+import io.socket.client.Socket
+import io.socket.emitter.Emitter
+import kotlinx.android.synthetic.main.activity_chat.*
+import kotlinx.android.synthetic.main.item_message.*
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
+import java.net.URISyntaxException
+
+class ChatActivity : AppCompatActivity() {
+    var user: UserModel? = null
+    lateinit var txtMessageBox: AppCompatEditText
+    lateinit var btnSend: AppCompatImageView
+    lateinit var recyclerMessages: RecyclerView
+    lateinit var progressLoading: ProgressBar
+
+    val messagesList = arrayListOf<MessageModel>()
+    var messagesAdapter: ChatMessagesAdapter? = null
+
+    private lateinit var mSocket: Socket
+    private val mUserName: String = "Brainium"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_chat)
+
+        try {
+            mSocket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+        } catch (e: URISyntaxException) {
+            Log.d("myTag", e.message)
+        }
+
+
+
+        initViews()
+        setupViews()
+        loadConversationMessages()
+
+        // Send params to socket
+        usingOption()
+
+        //connectionusingJsonString()
+
+       // connectUsingConnection()
+        //usingJsonArrayObj()
+
+        //connectUsingTestConnection()
+
+        //setSupportActionBar(toolbar_chat)
+        //val actionBar: ActionBar? = supportActionBar
+
+        //connect()
+        //connectUsingStaticJsonString()
+        
+
+        // connectUsingString()
+        //connectUsingTestConnection()
+        //connectUsingConnection()
+
+        /*  {
+
+            connect()
+            //setupSocket()
+
+*//*        val opts = IO.Options()
+        opts.query = "connection=Imdadul"
+        val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL, opts)
+
+        socket?.on(Socket.EVENT_CONNECT, {
+            Log.d("","==============================CONNECTED")
+        })?.on(Socket.EVENT_DISCONNECT, {
+            Log.d("","==============================OFF")
+        })*//*
+
+
+            mSocket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+
+            val chatEmtModel = ChatEmitModel(Constants.USER_ID, Constants.CHAT_TOKEN)
+            // Log.d("----", Gson().toJson(chatEmtModel))
+
+            // mSocket.connect()
+
+            // mSocket.emit("sendchat", sendChat)
+
+            //Log.d("----: ","" + credentialObject.toString())
+
+
+            *//* val sockets = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+        sockets.let {
+            it!!.connect()
+                .on(Socket.EVENT_CONNECT) {
+                    Log.d("---Socket", "Socket connected!!!!!")
+                }
+        }
+
+        sockets.emit("connection","Imdadul")
+*//*
+
+        }*/
+
+
+        /*if (intent.extras != null) {
+            user = UserModel(
+                uid = intent.getStringExtra("uid"),
+                name = intent.getStringExtra("name"),
+                status = intent.getStringExtra("status"),
+                photoUrl = intent.getStringExtra("photo")
+            )
+
+            setupViews()
+            loadConversationMessages()
+        } else {
+            finish()
+        }*/
+    }
+
+    private fun connectionusingJsonString() {
+        //send message
+        val jsonString ="{chatToken: " + "'" + Constants.CHAT_TOKEN + "'" + "}"
+        try {
+            val jsonData = JSONObject(jsonString)
+            mSocket.emit("CHAT", jsonData)
+        } catch (e: JSONException) {
+            Log.d("me", "error send message " + e.message)
+        }
+    }
+
+
+    private fun initViews() {
+        chat_img_back_arrow.setOnClickListener { }
+        chat_img_name.setOnClickListener { }
+        chat_img_calling.setOnClickListener { }
+        chat_img_video_calling.setOnClickListener { }
+        chat_img_menu_option.setOnClickListener { }
+        chat_img_send.setOnClickListener { }
+        chat_img_attachment.setOnClickListener { }
+        chat_img_rec_audio.setOnClickListener { }
+    }
+
+
+    private fun setupViews() {
+        // Get Views
+        txtMessageBox = findViewById(R.id.txtMessageBox)
+        btnSend = findViewById(R.id.chat_img_send)
+        recyclerMessages = findViewById(R.id.recyclerMessages)
+        progressLoading = findViewById(R.id.progressLoading)
+
+        // Toolbar
+        supportActionBar?.apply {
+            title = user?.name
+            subtitle = user?.status
+            setDisplayShowHomeEnabled(true)
+            setDisplayHomeAsUpEnabled(true)
+        }
+        setUserStatus(user?.status == "online")
+
+        // Recycler View
+        loadDummyMessages()
+        messagesAdapter = ChatMessagesAdapter()
+        recyclerMessages.layoutManager = LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+        recyclerMessages.adapter = messagesAdapter
+
+        // Message Box
+        txtMessageBox.setOnEditorActionListener { v, actionId, event ->
+            when (actionId) {
+                EditorInfo.IME_ACTION_GO -> {
+                    sendMessage(txtMessageBox.text.toString())
+                    return@setOnEditorActionListener true
+                }
+            }
+            return@setOnEditorActionListener false
+        }
+
+        // Send Button
+        btnSend.setOnClickListener {
+            sendMessage(txtMessageBox.text.toString())
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        user?.let {
+            message?.let {
+                messagesList.add(MessageModel(message = it.text.toString(), isMine = false))
+                messagesAdapter?.notifyItemInserted(messagesList.size)
+                recyclerMessages.scrollToPosition(messagesList.size - 1)
+            }
+
+            // Add Online = true /Offline = false Listener
+            setUserStatus(true)
+
+
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        user?.let {
+            //remove listener
+        }
+    }
+
+    private fun sendMessage(message: String) {
+        if (!message.isEmpty()) {
+            user?.let {
+                val receiverID: String = it.uid
+                val messageText = message
+                val receiverType = "RECEIVER_TYPE_USER"
+
+                // val textMessage = TextMessage(receiverID, messageText,receiverType)
+
+
+                val messageModel = MessageModel(message, true)
+                messagesList.add(messageModel)
+                messagesAdapter?.notifyItemInserted(messagesList.size - 1)
+                recyclerMessages.scrollToPosition(messagesList.size - 1)
+
+                // Clear the message box
+                txtMessageBox.setText("")
+            }
+        }
+    }
+
+
+    private fun setUserStatus(isOnline: Boolean) {
+        if (isOnline) {
+            supportActionBar?.subtitle = Html.fromHtml("<font color='#149214'>online</font>")
+        } else {
+            supportActionBar?.subtitle = Html.fromHtml("<font color='#575757'>offline</font>")
+        }
+    }
+
+    private fun loadConversationMessages() {
+        user?.let {
+
+            // Show Progress Bar
+            progressLoading.visibility = View.VISIBLE
+            recyclerMessages.visibility = View.GONE
+
+            // Hide Progress bar
+            progressLoading.visibility = View.GONE
+            recyclerMessages.visibility = View.VISIBLE
+
+            if (txtMessageBox != null) {
+                messagesList.add(MessageModel(txtMessageBox.text.toString(), true))
+
+                // Update RecyclerView
+                messagesAdapter?.notifyDataSetChanged()
+            } else {
+                Toast.makeText(this@ChatActivity, "Couldn't fetch messages!", Toast.LENGTH_SHORT)
+                    .show()
+            }
+
+            /*var messagesRequest = MessagesRequest.MessagesRequestBuilder()
+                .setUID(it.uid)
+                .build()*/
+
+            /*messagesRequest.fetchPrevious(object : CometChat.CallbackListener<List<BaseMessage>>() {
+                override fun onSuccess(msgList: List<BaseMessage>?) {
+                    // Hide Progress bar
+                    progressLoading.visibility = View.GONE
+                    recyclerMessages.visibility = View.VISIBLE
+
+                    if (msgList != null)
+                    {
+                        for (msg in msgList)
+                        {
+                            if (msg is TextMessage)
+                            {
+                                messagesList.add(msg.convertToMessageModel())
+                            }
+                        }
+
+                        // Update RecyclerView
+                        messagesAdapter?.notifyDataSetChanged()
+                    }
+                    else
+                    {
+                        Toast.makeText(this@ChatActivity, "Couldn't fetch messages!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                override fun onError(exception: CometChatException?) {
+                    // Hide Progress bar
+                    progressLoading.visibility = View.GONE
+                    recyclerMessages.visibility = View.VISIBLE
+
+                    Toast.makeText(this@ChatActivity, exception?.localizedMessage ?: "Unknown error occurred!", Toast.LENGTH_SHORT).show()
+                }
+            })*/
+        }
+    }
+
+
+    private fun loadDummyMessages() {
+        messagesList.add(MessageModel("Hi", true))
+        messagesList.add(MessageModel("How are you?", true))
+        messagesList.add(MessageModel("I'm fine", false))
+        messagesList.add(MessageModel("How about ya?", false))
+        messagesList.add(MessageModel("Fine", true))
+        messagesList.add(MessageModel("What ya upto these days?", true))
+        messagesList.add(MessageModel("Same ol' job dude!", false))
+        messagesList.add(
+            MessageModel(
+                "Same ol' job dude! asfa sfasf asfd asfd asf asdf asfd asf asfasf asf asf asf sf safasfdasdf asf asfd asf asdfasdf",
+                false
+            )
+        )
+        messagesList.add(
+            MessageModel(
+                "Same ol' job dude! asfa sfasf asfd asfd asf asdf asfd asf asfasf asf asf asf sf safasfdasdf asf asfd asf asdfasdf",
+                true
+            )
+        )
+        messagesAdapter?.notifyDataSetChanged()
+    }
+
+    // Recycler Adapter
+    inner class ChatMessagesAdapter :
+        RecyclerView.Adapter<ChatMessagesAdapter.MessageViewHolder>() {
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
+            val view = LayoutInflater.from(this@ChatActivity)
+                .inflate(R.layout.chat_message_item_layout, parent, false)
+            return MessageViewHolder(view)
+        }
+
+        override fun getItemCount(): Int = messagesList.size
+
+        override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+            val messageModel = messagesList[position]
+            holder.bindItem(messageModel)
+        }
+
+        // View Holder
+        inner class MessageViewHolder : RecyclerView.ViewHolder {
+            var txtMyMessage: AppCompatTextView
+            var txtOtherMessage: AppCompatTextView
+            var cardMyMessage: LinearLayout
+            var cardOtherMessage: LinearLayout
+            var txtMyName: TextView
+            var txtOtherName: TextView
+            var txtMyMessageTime: TextView
+            var txtOtherMessageTime: TextView
+            var imgMyUserImage: ImageView
+            var imgOtherUserImage: ImageView
+
+            constructor(itemView: View) : super(itemView) {
+                txtMyMessage = itemView.findViewById(R.id.txtMyMessage)
+                txtOtherMessage = itemView.findViewById(R.id.chat_item_txt_send_message)
+                cardMyMessage = itemView.findViewById(R.id.cardChatMyMessage)
+                cardOtherMessage = itemView.findViewById(R.id.cardChatOtherMessage)
+
+                txtMyName = itemView.findViewById(R.id.chat_item_txt_send_username)
+                txtOtherName = itemView.findViewById(R.id.chat_item_txt_receive_username)
+                txtMyMessageTime = itemView.findViewById(R.id.chat_item_txt_send_time)
+                txtOtherMessageTime = itemView.findViewById(R.id.chat_item_txt_receive_time)
+                imgMyUserImage = itemView.findViewById(R.id.chat_item_img_user_send)
+                imgOtherUserImage = itemView.findViewById(R.id.chat_item_img_user_receive)
+
+            }
+
+
+            fun bindItem(messageModel: MessageModel) {
+                if (messageModel.isMine) {
+                    cardMyMessage.visibility = View.VISIBLE
+                    imgMyUserImage.visibility = View.VISIBLE
+
+                    cardOtherMessage.visibility = View.GONE
+                    imgOtherUserImage.visibility = View.GONE
+
+                    txtMyMessage.text = messageModel.message
+                    txtMyName.text = messageModel.message
+                    txtMyMessageTime.text = messageModel.message
+                } else {
+                    cardMyMessage.visibility = View.GONE
+                    imgMyUserImage.visibility = View.GONE
+
+                    cardOtherMessage.visibility = View.VISIBLE
+                    imgOtherUserImage.visibility = View.VISIBLE
+
+                    txtOtherMessage.text = messageModel.message
+                    txtOtherName.text = messageModel.message
+                    txtOtherMessageTime.text = messageModel.message
+                }
+            }
+        }
+    }
+
+    private fun setupSocket() {
+        val socket = IO.socket("https://nodeserver.brainiuminfotech.com:3011/")
+
+        socket.on(Socket.EVENT_CONNECT, Emitter.Listener {
+            //tvSocketStatus.text = "Connected"
+            Log.d("----", it.size.toString())
+            socket.emit("connection", "Hello")
+        })
+        socket.connect()
+    }
+
+    private val connection = Emitter.Listener {
+
+        //tvSocketStatus.text = it[0].toString()
+        Log.d("----: ", "" + it.size)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        /*  mSocket.off("connection", onConnection)
+        mSocket.off(Socket.EVENT_CONNECT, onConnect)
+        mSocket.off("sendchat", sendChat)*/
+    }
+
+    /*  private val userapearonline = Emitter.Listener { args ->
+        val data = args[0] as JSONObject
+        var numUsers = ""
+        try {
+            numUsers = data.toString()
+            Log.d("----: ",numUsers)
+
+            tvSocketStatus.text = numUsers
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+        val intent = Intent()
+        intent.putExtra("user_name", mUserName)
+        setResult(Activity.RESULT_OK, intent)
+        finish()
+    }*/
+
+    private val onConnection = Emitter.Listener {
+
+        //tvSocketStatus.text = it[0].toString()
+        Log.d("----: ", "" + it.size)
+/*
+        val data = args[0] as JSONObject
+        val username: String
+        val message: String
+        try {
+            Log.d("----: ", data.toString())
+            tvSocketStatus.text = data.toString()
+        } catch (e: JSONException) {
+            e.printStackTrace()
+            return
+        }
+
+        // add the message to view
+        //addMessage(username, message)*/
+    }
+
+    private val sendChat = Emitter.Listener {
+
+        //tvSocketStatus.text = it.size.toString()
+        Log.d("----: ", "sendChat: " + it.size)
+    }
+
+    private val onConnect = Emitter.Listener {
+        Log.d("----: ", "Connected ")
+        //tvSocketStatus.text = "Connected"
+    }
+
+    fun connect() {
+        val credentialObject = JSONObject()
+        try {
+            credentialObject.put("userid", Constants.USER_ID)
+            credentialObject.put("chatToken", Constants.CHAT_TOKEN)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+
+        val obj = JSONObject()
+        obj.put("userid", Constants.USER_ID)
+        obj.put("chatToken", Constants.CHAT_TOKEN)
+
+        val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+        socket.connect()
+            .on(Socket.EVENT_CONNECT) { println("----connected") }
+        //.on(Socket.EVENT_DISCONNECT) { println("----disconnected") }
+
+        Log.d("---obj", obj.toString())
+        socket.emit("connection", obj)
+
+
+    }
+
+    fun connectUsingStaticJsonString() {
+        val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+        socket.connect()
+            .on(Socket.EVENT_CONNECT) { println("----connected") }
+        //.on(Socket.EVENT_DISCONNECT) { println("----disconnected") }
+
+        socket.emit("connection", JSONObject("{chatToken: 5tstysrtr6s54fsvhs65454s}"))
+
+
+    }
+
+    private fun connectUsingString() {
+
+        try {
+            val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+            socket.connect()
+            socket.on(Socket.EVENT_CONNECT) {
+                println("Connected: " + socket.id())
+                socket.emit("connection", "Hi Joyeta")
+            }
+            socket.connect()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun connectUsingConnection() {
+        try {
+            val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+            socket.connect()
+            socket.emit(
+                "connection",
+                "{userid: " + Constants.USER_ID + ", chatToken:" + Constants.CHAT_TOKEN + "}"
+            )
+            socket.connect()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        /*   let socketData: [String: Any] = ["name": "pallab"]
+           SocketIOManager.sharedInstance.socket.emit("connection", with: [socketData])
+           DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+               SocketIOManager.sharedInstance.socket.emit("testingUser", with: [socketData])
+           }*/
+    }
+
+    private fun connectUsingTestConnection() {
+
+        try {
+            val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+            socket.connect()
+            socket.on("testconnection") {
+                println("Connected ---1 : " + socket.id())
+                println("Connected 2---: " + it[0].toString())
+                println("Connected---3 : " + it.size)
+                //socket.emit("testconnection1", "{userid: " + Constants.USER_ID + ", chatToken:" + Constants.CHAT_TOKEN + "}")
+                socket.emit(
+                    "testconnection1",
+                    "{userid: " + Constants.USER_ID + ", chatToken:" + Constants.CHAT_TOKEN + "}"
+                )
+            }
+            socket.connect()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
+    private fun usingRawCode() {
+        val jsonString =
+            "{userid: " + Constants.USER_ID + ", chatToken:" + Constants.CHAT_TOKEN + "}"
+        Log.d("----", JSONObject(jsonString).toString())
+
+        // mSocket.on(Socket.EVENT_CONNECT, onConnect)
+        mSocket.connect().on(Socket.EVENT_CONNECT) {
+            //tvSocketStatus.text = "Connected"
+            mSocket.emit("connection", JSONObject(jsonString))
+        }
+    }
+
+
+    private fun usingJsonArrayObj() {
+
+        val poisonArray = JSONArray()
+        poisonArray.put(1)
+        poisonArray.put(2)
+        val poisonObject = JSONObject()
+        try {
+            poisonObject.put("userid", poisonArray)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+
+
+        val credentialObject = JSONObject()
+        try {
+            credentialObject.put("userid", Constants.USER_ID)
+            credentialObject.put("chatToken", Constants.CHAT_TOKEN)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+
+        // mSocket.on(Socket.EVENT_CONNECT, onConnect)
+        mSocket.connect().on(Socket.EVENT_CONNECT) {
+            //tvSocketStatus.text = "Connected"
+            mSocket.emit("connection", poisonObject)
+        }
+    }
+
+    private fun usingJsonObj() {
+        val credentialObject = JSONObject()
+        try {
+            credentialObject.put("userid", Constants.USER_ID)
+            credentialObject.put("chatToken", Constants.CHAT_TOKEN)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+
+        // mSocket.on(Socket.EVENT_CONNECT, onConnect)
+        mSocket.connect().on(Socket.EVENT_CONNECT) {
+            //tvSocketStatus.text = "Connected"
+            mSocket.emit("connection", credentialObject)
+        }
+    }
+
+
+    private fun connectionUsingFunction() {
+        val socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL)
+        socket.connect()
+
+        // this is used to send to all connecting sockets
+    }
+
+    private fun usingEmitAndOn() {
+        val credentialObject = JSONObject()
+        try {
+            credentialObject.put("userid", Constants.USER_ID)
+            credentialObject.put("chatToken", Constants.CHAT_TOKEN)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+
+        mSocket.emit("connection", credentialObject).on("connection") { args ->
+            val data = args[0] as JSONObject
+            //data is in JSOn format
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    "Haha !! we are connected now !",
+                    Toast.LENGTH_SHORT
+                ).show()
+                //tvSocketStatus.text = data.toString()
+                //whatever your UI logic
+            }
+        }
+
+        mSocket.connect()
+    }
+
+    private fun usingOption() {
+        var socket: Socket? = null
+
+        try {
+            val mOptions = IO.Options()
+            mOptions.query = "userId=" + Constants.USER_ID + "&chatToken=" + Constants.CHAT_TOKEN
+            socket = IO.socket(Constants.CHAT_SOCKET_SERVER_URL, mOptions)
+        } catch (e: URISyntaxException) {
+            e.printStackTrace()
+        }
+        socket!!.connect()
+    }
+
+    private fun usingBraces() {
+        // mSocket.on(Socket.EVENT_CONNECT, onConnect)
+        mSocket.connect().on(Socket.EVENT_CONNECT) {
+            //tvSocketStatus.text = "Connected"
+            // mSocket.emit("connection", {"userid:" : Constants.USER_ID , "chatToken:": Constants.CHAT_TOKEN})
+        }
+    }
+
+    /* override fun onCreateOptionsMenu(menu: Menu): Boolean {
+         // Inflate the menu; this adds items to the action bar if it is present.
+         menuInflater.inflate(R.menu.menu_chat, menu)
+         return true
+     }
+
+     override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+         when (item?.itemId) {
+             R.id.menu_call ->{
+                 Toast.makeText(applicationContext, "Call", Toast.LENGTH_SHORT).show()
+             }
+
+             R.id.menu_video ->{
+                 Toast.makeText(applicationContext, "Video", Toast.LENGTH_SHORT).show()
+             }
+         }
+         return super.onOptionsItemSelected(item)
+     }*/
+}
+
+

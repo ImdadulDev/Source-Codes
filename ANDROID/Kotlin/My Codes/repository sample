@@ -1,0 +1,200 @@
+package com.android.io.data.repositories
+
+import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import com.android.io.data.db.AppDatabase
+import com.android.io.data.db.entities.*
+import com.android.io.data.network.Apis
+import com.android.io.data.network.SafeApiRequest
+import com.android.io.data.network.bodyrawjson.PosLogoutTransactionBody
+import com.android.io.data.network.responses.PosLogoutTransactionResponse
+import com.android.io.helpers.getFormattedDateAndTimeTime
+import com.android.io.util.Coroutines
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class ItemsRepository(
+    private val api: Apis,
+    private val db: AppDatabase
+) : SafeApiRequest() {
+
+    private val columnDetails = MutableLiveData<List<ColumnModule>>()
+    private val filter = MutableLiveData<List<Result>>()
+    //private val manageItems = MutableLiveData<List<ManageItemModelEntity>>()
+
+    init {
+        columnDetails.observeForever {
+            saveColumn(it)
+        }
+
+        filter.observeForever {
+            saveFilter(it)
+        }
+    }
+
+    suspend fun getColumn(): LiveData<List<ColumnModule>> {
+        return withContext(Dispatchers.IO) {
+            fetchColumn()
+            db.getColumnDao().getColumns()
+        }
+    }
+
+    suspend fun getFilter(filterBy:String): LiveData<List<Result>> {
+        return withContext(Dispatchers.IO) {
+            fetchFilter(filterBy)
+            db.getFilterDao().getFilter()
+        }
+    }
+
+    private suspend fun fetchColumn() {
+        try {
+            val response = apiRequest { api.getColumnDataFromApi() }
+            //Log.d("----", "columnModule res: $response")
+            columnDetails.postValue(response.data_type)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private suspend fun fetchFilter(filterBy: String) {
+        try {
+            val response = apiRequest { api.getFilterFromApi(filterBy) }
+            //Log.d("----", "columnModule res: " + response.data_type)
+            filter.postValue(response.result)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun fetchFilterByField(filterBy: String) : List<Result> {
+
+        val response = apiRequest { api.getFilterFromApi(filterBy) }
+        //Log.d("----", "Filter res: " + response.result)
+        return response.result
+    }
+
+    suspend fun getUserDetailsFromDb() : UserLoginEntity {
+        return withContext(Dispatchers.IO) {
+            db.getUserLoginDao().getLogedInUser()
+        }
+    }
+
+    suspend fun doLogoutApi() : PosLogoutTransactionResponse {
+        return withContext(Dispatchers.IO) {
+            val userData = db.getUserLoginDao().getLogedInUser()
+
+            val sequenceNumber =
+                userData.businessuits.toString() + getFormattedDateAndTimeTime() + userData.workstationid.toString() + userData.operatorId + ""
+
+            // So, I am sending current date and time in this format: "2020-02-12 16:44:04"
+            val posLogoutTransactionBody = PosLogoutTransactionBody(
+                userData.businessuits.toString(),
+                userData.workstationid.toString(),
+                userData.operatorId,
+                "1070",
+                "1070",
+                getFormattedDateAndTimeTime(),
+                userData.businessGroupGroupId.toString(),
+                "1"
+            )
+            apiRequest { api.getLogoutApi(posLogoutTransactionBody) }
+        }
+    }
+
+    fun savePosLogoutTransactionData() {
+        Coroutines.io {
+            val userData = db.getUserLoginDao().getLogedInUser()
+
+            val sequenceNumber =
+                userData.businessuits.toString() + getFormattedDateAndTimeTime() + userData.workstationid.toString() + userData.operatorId + ""
+
+            // So, I am sending current date and time in this format: "2020-02-12 16:44:04"
+            val posLogoutEntity = PosLogoutEntity(
+                userData.businessuits.toString(),
+                userData.workstationid.toString(),
+                userData.operatorId,
+                "1070",
+                "1070",
+                getFormattedDateAndTimeTime(),
+                userData.businessGroupGroupId.toString(),
+                "1"
+            )
+            db.getPosLogoutDao().savePosLogoutData(posLogoutEntity)
+        }
+    }
+
+    private fun saveColumn(columnModel: List<ColumnModule>) {
+        Coroutines.io {
+            db.getColumnDao().saveAllColumn(columnModel)
+        }
+    }
+
+    fun insertCheckedItemCountInColumn(checkedItemCount:Int, fieldName: String) {
+        Coroutines.io {
+            db.getColumnDao().insertCheckedItemCount(checkedItemCount, fieldName)
+        }
+    }
+
+    private fun saveFilter(filter: List<Result>) {
+        Coroutines.io {
+            db.getFilterDao().saveAllFilter(filter)
+        }
+    }
+
+    fun saveManageItems(manageItemModelEntity: List<ManageItemModelEntity?>) {
+        Coroutines.io {
+            db.getManageItemsDao().saveAllManageItems(manageItemModelEntity)
+        }
+    }
+
+    suspend fun getManageItems(): LiveData<List<ManageItemModelEntity>> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsDao().getManageItems()
+        }
+    }
+
+    fun saveManageItemsResults(manageItemsResultEntity: List<ManageItemsResultEntity?>) {
+        Coroutines.io {
+            db.getManageItemsResultDao().saveAllManageItemsResult(manageItemsResultEntity)
+        }
+    }
+
+    fun saveManageItemsBusinessUnitGroupItems(manageItemsBusinessUnitGroupItemEntity: List<ManageItemsBusinessUnitGroupItemEntity?>) {
+        Coroutines.io {
+            db.getManageItemsBusinessUnitGroupItemDao().saveAllManageItemsBusinessUnitGroupItems(manageItemsBusinessUnitGroupItemEntity)
+        }
+    }
+
+    suspend fun getManageItemsResults(): LiveData<List<ManageItemsResultEntity>> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsResultDao().getManageItemsResults()
+        }
+    }
+
+    suspend fun getManageItemsBusinessUnitGroupItems(): LiveData<List<ManageItemsBusinessUnitGroupItemEntity>> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsBusinessUnitGroupItemDao().getManageItemsBusinessUnitGroupItems()
+        }
+    }
+
+    suspend fun getManageItemsBySize(limit: String, offset: String): List<ManageItemModelEntity?> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsDao().getManageItemsBySize(limit, offset)
+        }
+    }
+
+    suspend fun getManageItemsByFilterTxtWithSimilarTypeData(filterTxt: String): List<ManageItemModelEntity> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsDao().getManageItemsByFilterTxtWithSimilarTypeData(filterTxt)
+        }
+    }
+
+    suspend fun getManageItemsByBarcode(barcode: String): List<ManageItemModelEntity> {
+        return withContext(Dispatchers.IO) {
+            db.getManageItemsDao().getManageItemsByBarcode(barcode)
+        }
+    }
+
+
+}

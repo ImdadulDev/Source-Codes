@@ -1,0 +1,159 @@
+package com.android.io.data.preferences
+
+import android.content.Context
+import android.content.SharedPreferences
+import com.android.io.ui.datamanagement.models.SalesModeListModel
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.lang.reflect.Type
+
+class PreferenceHelper(context: Context) {
+    private val PREFS_NAME = "USER_PREF"
+    val sharedPref: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun saveUserIdAndPass(KEY_NAME: String, value_name: String, KEY_PASS: String, value_pass: String) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putString(KEY_NAME, value_name)
+        editor.putString(KEY_PASS, value_pass)
+
+        editor.apply()
+    }
+
+
+    fun getUserId(KEY_NAME: String): String? {
+
+        return sharedPref.getString(KEY_NAME, null)
+
+
+    }
+
+    fun getUserPass(KEY_PASS: String): String? {
+
+        return sharedPref.getString(KEY_PASS, null)
+
+
+    }
+
+    fun save(KEY_NAME: String, value: Int) {
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putInt(KEY_NAME, value)
+
+        editor.apply()
+    }
+
+    fun save(KEY_NAME: String, status: Boolean) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putBoolean(KEY_NAME, status)
+
+        editor.apply()
+    }
+
+
+    fun getValueInt(KEY_NAME: String): Int {
+
+        return sharedPref.getInt(KEY_NAME, 0)
+    }
+
+    fun getValueBoolean(KEY_NAME: String, defaultValue: Boolean): Boolean {
+
+        return sharedPref.getBoolean(KEY_NAME, defaultValue)
+
+    }
+
+    fun clearSharedPreference() {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        //sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
+
+        editor.clear()
+        editor.apply()
+    }
+
+    fun removeValue(KEY_NAME: String) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.remove(KEY_NAME)
+        editor.apply()
+    }
+
+    fun saveBeginTime(KEY_NAME: String, beginTime: String) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putString(KEY_NAME, beginTime)
+
+        editor.apply()
+    }
+
+
+    fun getBeginTime(KEY_NAME: String): String? {
+
+        return sharedPref.getString(KEY_NAME, null)
+
+    }
+
+
+    fun saveOpeningBalanceForOneDay(KEY_NAME: String, openingBalance: String) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putString(KEY_NAME, openingBalance)
+
+        editor.apply()
+    }
+
+
+    fun getOpeningBalanceForOneDay(KEY_NAME: String): String? {
+
+        return sharedPref.getString(KEY_NAME, "0")
+    }
+
+    fun saveSalesModeLockedStatus(KEY_NAME: String, isLocked: Boolean) {
+
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+
+        editor.putBoolean(KEY_NAME, isLocked)
+
+        editor.apply()
+    }
+
+
+    fun getSalesModeLockedStatus(KEY_NAME: String): Boolean {
+        return sharedPref.getBoolean(KEY_NAME, false)
+
+    }
+
+    fun saveArrayList(
+        salesModeItemDetailsDataList: ArrayList<SalesModeListModel>
+    ) {
+        val editor = sharedPref.edit()
+        val json = Gson().toJson(salesModeItemDetailsDataList)
+        editor.putString("sales_mode_locked_list", json)
+        editor.apply()
+    }
+
+    fun retrieveList(): ArrayList<SalesModeListModel> {
+        val json = sharedPref.getString("sales_mode_locked_list", null)
+        val type: Type = object : TypeToken<List<SalesModeListModel>>(){}.type
+        return Gson().fromJson(json, type)
+    }
+
+
+    fun saveOpeningStatus(KEY_NAME: String, openingBalance: String) {
+        val editor: SharedPreferences.Editor = sharedPref.edit()
+        editor.putString(KEY_NAME, openingBalance)
+        editor.apply()
+    }
+
+
+    fun getOpeningStatus(KEY_NAME: String): String? {
+        return sharedPref.getString(KEY_NAME, "0")
+    }
+}

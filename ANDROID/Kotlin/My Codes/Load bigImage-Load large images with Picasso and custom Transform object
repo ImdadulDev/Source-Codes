@@ -1,0 +1,20 @@
+https://stackoverflow.com/questions/23740307/load-large-images-with-picasso-and-custom-transform-object
+
+
+Big images loading with Picasso
+Picasso  
+    .with(context)
+    .load(imageUrl)
+    .resize(6000, 2000)
+    .onlyScaleDown() // the image will only be resized if it's bigger than 6000x2000 pixels.
+    .into(imageViewResizeScaleDown);
+    
+    
+    Or you can use fit()
+
+Picasso  
+    .with(context)
+    .load(imageUrl)
+    .fit()
+    // call .centerInside() or .centerCrop() to avoid a stretched image
+    .into(imageViewFit);

@@ -1,0 +1,1009 @@
+package com.android.io.ui.fragments
+
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.view.animation.AnimationUtils
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentPagerAdapter
+import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager.widget.ViewPager
+import com.android.io.R
+import com.android.io.data.db.entities.ManageItemModelEntity
+import com.android.io.data.network.ApiUtils
+import com.android.io.data.repositories.ItemsRepository
+import com.android.io.helpers.*
+import com.android.io.listeners.ItemMoveCallbackListener
+import com.android.io.listeners.RecyclerViewCallbacks
+import com.android.io.listeners.RecyclerViewTouchListener
+import com.android.io.ui.activities.FilterActivity
+import com.android.io.ui.datamanagement.adpters.*
+import com.android.io.ui.datamanagement.models.ColumnAddModifyModel
+import com.android.io.ui.datamanagement.models.FilterItem
+import com.android.io.ui.datamanagement.models.ItemsDataModel
+import com.android.io.ui.inflateViews.AddFilterMultiSelectSpinnerDialog
+import com.android.io.ui.inflateViews.showManageItemsSaveCheckedModifyColumnAlertDialog
+import com.android.io.util.Coroutines
+import com.google.android.material.navigation.NavigationView
+import kotlinx.android.synthetic.main.activity_admin_mode.view.*
+import kotlinx.android.synthetic.main.admin_mode_nav_header_right_layout.view.*
+import kotlinx.android.synthetic.main.custom_popup_window_add_filter_layout.view.*
+import kotlinx.android.synthetic.main.custom_popup_window_on_equal_iv_inside_add_filter_layout.view.*
+import kotlinx.android.synthetic.main.fragment_manage_items.*
+import kotlinx.android.synthetic.main.include_manage_items_fragment_item_details_layout.*
+import org.kodein.di.KodeinAware
+import org.kodein.di.android.x.kodein
+import org.kodein.di.generic.instance
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.util.*
+import kotlin.collections.ArrayList
+
+class ManageItemsFragment : Fragment(), KodeinAware, OnStartDragListener {
+
+    override val kodein by kodein()
+    private val itemsRepository: ItemsRepository by instance()
+
+    private lateinit var fragContext: Context
+    private lateinit var manageItemsRootLayout: RelativeLayout
+
+    private var manageItemDataListEntity: ArrayList<ManageItemModelEntity?> = ArrayList()
+    private var columnByUserRvList: ArrayList<String> = ArrayList()
+    private lateinit var itemsRVAdapter: ItemsRVAdapter
+    private lateinit var columnByUserRvAdapter: ColumnUserRvAdapter
+    private lateinit var mLayoutManager: RecyclerView.LayoutManager
+    private lateinit var adminModeDrawerLayout: DrawerLayout
+    private lateinit var navViewRightHeaderView: View
+    private lateinit var navViewRightHeaderViewRvModifyColumn: RecyclerView
+    private lateinit var navViewRightHeaderViewRvAddModifyColumn: RecyclerView
+    private lateinit var adminModeDrawerEditOptionLL: LinearLayout
+    private lateinit var adminModeDrawerBtnColumn: TextView
+    private lateinit var adminModeDrawerBtnDelete: TextView
+    private lateinit var adminModeDrawerBtnAddNew: TextView
+    private lateinit var adminModeDrawerBtnFilter: TextView
+    private lateinit var adminModeDrawerBtnEnable: TextView
+    private lateinit var adminModeDrawerBtnDisable: TextView
+
+    //init data for column layout
+    private lateinit var columnModifyLL: LinearLayout
+    private lateinit var addColumnModifyLL: LinearLayout
+    private lateinit var addColumnModifyBackLL: LinearLayout
+    private lateinit var columnModifyIvAdd: ImageView
+
+    //init data for add modify column
+    lateinit var addModifyColumnAdapter: DragDropRecyclerAdapter
+    lateinit var addModifyColumnTouchHelper: ItemTouchHelper
+
+    //init data for dialog
+    private var itemDownloadDialog: AlertDialog? = null
+
+    //pop up window on Add Filter
+    private var filterPopup: PopupWindow? = null
+    private var filterEqualOrNotEqualPopup: PopupWindow? = null
+    private var selectedItem: Int = -1
+    private lateinit var filterItemList: ArrayList<FilterItem>
+    private lateinit var addFilterAdapter: AddFilterAdapter
+    private lateinit var addFilterSelectedAdapter: AddFilterSelectedAdapter
+    private var selectedFilteredList: ArrayList<FilterItem> = ArrayList()
+    private lateinit var searchFilteredHorizonRV: RecyclerView
+
+
+    //for api
+    private var pageNo: String = "1"
+    private var limit: String = "25"
+    private var recordCount: String = "25"
+
+    private val _requestCode: Int = 5
+
+    //this method is created to access activity right navigation view data in the fragment
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        //init common views of Admin mode
+        adminModeDrawerLayout = activity!!.findViewById(R.id.drawer_layout) as DrawerLayout
+        adminModeDrawerEditOptionLL = adminModeDrawerLayout.admin_mode_edit_option_ll
+
+        adminModeDrawerBtnAddNew = adminModeDrawerLayout.admin_mode_btn_add_new
+        adminModeDrawerBtnEnable = adminModeDrawerLayout.admin_mode_btn_enable
+        adminModeDrawerBtnColumn = adminModeDrawerLayout.admin_mode_btn_column
+        adminModeDrawerBtnDelete = adminModeDrawerLayout.admin_mode_btn_delete
+        adminModeDrawerBtnDisable = adminModeDrawerLayout.admin_mode_btn_disable
+        adminModeDrawerBtnFilter = adminModeDrawerLayout.admin_mode_btn_filter
+
+        adminModeDrawerBtnAddNew.setOnClickListener {
+            setUpItemDetailsLayout()
+        }
+
+        // Init nav header r8 data
+        val navViewRight =
+            activity!!.findViewById(R.id.admin_mode_nav_view_drawer_right) as NavigationView
+        navViewRightHeaderView = navViewRight.getHeaderView(0)
+
+        //headerView.admin_mode_nav_header_title.text = "Imdadul"
+        navViewRightHeaderViewRvModifyColumn =
+            navViewRightHeaderView.admin_mode_nav_header_right_rv_modify_column_list
+        navViewRightHeaderViewRvAddModifyColumn =
+            navViewRightHeaderView.admin_mode_nav_header_right_rv_add_modify_column_list
+
+        adminModeDrawerBtnColumn.setOnClickListener {
+            adminModeDrawerLayout.openDrawer(GravityCompat.END)
+            //initRvColumn()
+        }
+
+        //Init right nav drawer add modify column data
+        columnModifyLL = navViewRightHeaderView.admin_mode_nav_header_right_modify_column_ll
+        addColumnModifyLL = navViewRightHeaderView.admin_mode_nav_header_right_add_modify_column_ll
+        addColumnModifyBackLL =
+            navViewRightHeaderView.admin_mode_nav_header_right_add_modify_column_back
+        columnModifyIvAdd = navViewRightHeaderView.admin_mode_nav_header_iv_add
+
+        /* //adding anim during show and hide
+         columnModifyIvAdd.setOnClickListener {
+             addColumnModifyLL.visibility = View.VISIBLE
+             columnModifyLL.visibility = View.GONE
+
+             slideFromRight(addColumnModifyLL, activity)
+         }
+
+         addColumnModifyBackLL.setOnClickListener {
+             columnModifyLL.visibility = View.VISIBLE
+             addColumnModifyLL.visibility = View.GONE
+
+             slideToRight(addColumnModifyLL, activity)
+         }*/
+
+        addColumnModifyBackLL.setOnClickListener {
+            adminModeDrawerLayout.closeDrawers()
+        }
+
+
+        navViewRightHeaderView.admin_mode_nav_header_right_rv_modify_column_button_apply.setOnClickListener {
+            if (navViewRightHeaderView.admin_mode_nav_header_right_rv_modify_column_checkBox_save_column.isChecked) {
+                showAddModifyColumnCheckedDialog()
+            } else adminModeDrawerLayout.closeDrawers()
+
+
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        fragContext = container!!.context
+        // Inflate the layout for this fragment
+        return inflater.inflate(R.layout.fragment_manage_items, container, false)
+    }
+
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        super.onActivityCreated(savedInstanceState)
+
+        manageItemsRootLayout = manage_items_root_layout
+        searchFilteredHorizonRV = manage_items_fragment_rv_on_add_filter
+
+        initFragViews()
+
+        fetchData()
+    }
+
+    private fun fetchData() = Coroutines.main {
+        /*  itemsRepository.getColumnByUser().observe(this, Observer { columnsByUser ->
+
+            for (element in columnsByUser) {
+                //Log.d("----element: ", columns.size.toString())
+                Log.d("----Column By User: ", element.columnSetName)
+
+                columnByUserRvList.add(element.columnSetName)
+            }
+
+            initRvColumn()
+
+        })*/
+
+
+        if (checkNetworkState(fragContext)) {
+            getItemsFromApis(limit, pageNo)
+        } else {
+            try {//manageItemsRootLayout.snackBarLengthLongWithAction("Offline Mode")
+
+                itemsRepository.getManageItems().observe(viewLifecycleOwner, Observer { manageItems ->
+                    //Log.d("----", " manageItems.size: " + manageItems.size)
+                    // Log.d("----", " manageItems.des: " + element.description)
+                    manageItemDataListEntity.clear()
+                    manageItemDataListEntity.addAll(manageItems)
+                    recordCount = manageItems[0].recordCount
+                    initRecyclerViewData()
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        itemsRepository.getColumn().observe(viewLifecycleOwner, Observer { columns ->
+            val columnAddModifyColumnList: ArrayList<ColumnAddModifyModel> = ArrayList()
+
+            for (element in columns) {
+                //Log.d("----element: ", columns.size.toString())
+                //Log.d("----element: ", element.fieldname)
+
+                columnAddModifyColumnList.add(
+                    ColumnAddModifyModel(
+                        element.coltype,
+                        element.dbName,
+                        element.fieldname,
+                        element.filterDisplay,
+                        element.importDisplay,
+                        element.isDisplayed,
+                        element.isEditable,
+                        element.isForeignKey,
+                        element.isUsed,
+                        element.model,
+                        element.name,
+                        element.searchfield,
+                        element.urlslookup
+                    )
+                )
+            }
+
+            initRvAddModifyColumn(columnAddModifyColumnList)
+
+        })
+    }
+
+    //populating data in add modify page
+    private fun initRvAddModifyColumn(columnAddModifyColumnList: ArrayList<ColumnAddModifyModel>) {
+        //init data from column part
+        addModifyColumnAdapter = DragDropRecyclerAdapter(this)
+        val callback: ItemTouchHelper.Callback = ItemMoveCallbackListener(addModifyColumnAdapter)
+        addModifyColumnTouchHelper = ItemTouchHelper(callback)
+        addModifyColumnTouchHelper.attachToRecyclerView(navViewRightHeaderViewRvAddModifyColumn)
+        navViewRightHeaderViewRvAddModifyColumn.layoutManager = LinearLayoutManager(activity)
+        navViewRightHeaderViewRvAddModifyColumn.adapter = addModifyColumnAdapter
+
+        addModifyColumnAdapter.setColumnList(columnAddModifyColumnList)
+
+    }
+
+    private fun initFragViews() {
+        adminModeDrawerBtnFilter.setOnClickListener {
+            admin_mode_filter_layout.visibility = View.VISIBLE
+        }
+
+        admin_mode_filter_layout_iv_close.setOnClickListener {
+            admin_mode_filter_layout.visibility = View.GONE
+        }
+
+        admin_mode_btn_add_filter.setOnClickListener {
+            val intent = Intent(activity, FilterActivity::class.java)
+            //intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)// If an instance of this Activity already exists, then it will be moved to the front. If an instance does NOT exist, a new instance will be created.
+            //intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            startActivityForResult(intent, _requestCode)
+
+        }
+
+        //to show popup window
+        /*admin_mode_btn_add_filter.setOnClickListener {
+            dismissPopup()
+            filterPopup = showPopUpFilter()
+            filterPopup?.isOutsideTouchable = false
+            filterPopup?.isFocusable = true
+            filterPopup?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            filterPopup?.showAsDropDown(admin_mode_btn_add_filter)
+        }*/
+
+        //calling api according to page no and items per page
+        mif_items_per_page_iv_first_page.setOnClickListener {
+            try {
+                pageNo = "1"
+                if (checkNetworkState(fragContext)) {
+                    getItemsFromApis(limit, pageNo)
+                } else {
+                    Coroutines.main {
+                        manageItemDataListEntity.clear()
+                        manageItemDataListEntity.addAll(itemsRepository.getManageItemsBySize(limit, "0"))
+                        initRecyclerViewData()
+                    }
+                }
+
+                //mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        mif_items_per_page_iv_next_page.setOnClickListener {
+            try {
+                pageNo = (pageNo.toInt() + 1).toString()
+
+                if (pageNo != (recordCount.toInt() / limit.toInt()).toString()) {
+
+                    if (checkNetworkState(fragContext)) {
+                        getItemsFromApis(limit, pageNo)
+                    } else {
+                        Coroutines.main {
+                            val offset = ((pageNo.toInt() - 1) * limit.toInt()).toString()
+
+                            Log.d("----offset : ", offset)
+
+                            manageItemDataListEntity.clear()
+                            manageItemDataListEntity.addAll(itemsRepository.getManageItemsBySize(limit, offset))
+                            initRecyclerViewData()
+                        }
+                    }
+
+                    //mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+
+                } else manageItemsRootLayout.snackBarLengthLongWithAction("You are on last page.")
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        mif_items_per_page_iv_previous_page.setOnClickListener {
+            try {
+                if (pageNo != "1") {
+
+                    pageNo = (pageNo.toInt() - 1).toString()
+
+                    if (checkNetworkState(fragContext)) {
+                        getItemsFromApis(limit, pageNo)
+                    } else {
+                        Coroutines.main {
+                            val offset = ((pageNo.toInt() - 1) * limit.toInt()).toString()
+
+                            manageItemDataListEntity.clear()
+                            manageItemDataListEntity.addAll(itemsRepository.getManageItemsBySize(limit, offset))
+
+                            initRecyclerViewData()
+                        }
+                    }
+
+                   // mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+
+                } else manageItemsRootLayout.snackBarLengthLongWithAction("You are on fast page.")
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        mif_items_per_page_iv_last_page.setOnClickListener {
+
+            try {
+                pageNo = (recordCount.toInt() / limit.toInt()).toString()
+
+                if (checkNetworkState(fragContext)) {
+                    getItemsFromApis(limit, pageNo)
+                } else {
+                    Coroutines.main {
+                        val offset = ((pageNo.toInt() - 1) * limit.toInt()).toString()
+                        manageItemDataListEntity.clear()
+                        manageItemDataListEntity.addAll(itemsRepository.getManageItemsBySize(limit, offset))
+
+                        initRecyclerViewData()
+                    }
+                }
+
+
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        mif_items_per_page_spinner.onItemSelectedListener =
+            object : AdapterView.OnItemSelectedListener {
+
+                override fun onItemSelected(
+                    parent: AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    try {
+                        limit = parent!!.selectedItem.toString()
+
+                        if (checkNetworkState(fragContext)) {
+                            getItemsFromApis(limit, pageNo)
+                        } else {
+                            Coroutines.main {
+                                val offset = (pageNo.toInt() * limit.toInt()).toString()
+                                Log.d("----offset : ", offset)
+
+                                manageItemDataListEntity.clear()
+                                manageItemDataListEntity.addAll(itemsRepository.getManageItemsBySize(limit, offset))
+                                initRecyclerViewData()
+                            }
+                        }
+
+                       // mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {
+
+                }
+            }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        //super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == _requestCode && resultCode == Activity.RESULT_OK) {
+            // Check whether we're recreating a previously destroyed instance
+            if (data != null) {
+                // Restore value of members from saved state
+                val checkedArrayList = data.getStringArrayListExtra("Filtered_List")
+                val isDataFound = data.getStringArrayListExtra("isDataFound")
+                if (checkedArrayList != null) {
+                    for (element in checkedArrayList) {
+                        //Log.d("----", "checkedArrayList data: $element")
+                        selectedFilteredList.add(FilterItem(element))
+                    }
+
+                    showPopUpFilteredSelectedDataInHorizonRv()
+                }
+            } else {
+                // Probably initialize members with default values for a new instance
+            }
+        }
+
+    }
+
+
+    private fun initRvColumn() {
+
+        // Set the adapter and Layout Manager of the RecyclerView
+        navViewRightHeaderViewRvModifyColumn.layoutManager = LinearLayoutManager(context)
+        columnByUserRvAdapter = ColumnUserRvAdapter(columnByUserRvList)
+        navViewRightHeaderViewRvModifyColumn.adapter = columnByUserRvAdapter
+        columnByUserRvAdapter.notifyDataSetChanged()
+
+        navViewRightHeaderViewRvModifyColumn.addOnItemTouchListener(
+            RecyclerViewTouchListener(
+                activity,
+                navViewRightHeaderViewRvModifyColumn,
+                object : RecyclerViewTouchListener.ClickListener {
+                    override fun onClick(
+                        view: View?,
+                        position: Int
+                    ) {
+
+                    }
+
+                    override fun onLongClick(view: View?, position: Int) {}
+                })
+        )
+    }
+
+    private fun getItemsFromApis(limit: String, offset: String)= Coroutines.main {
+
+        val userDetails = itemsRepository.getUserDetailsFromDb()
+
+        //Log.d("----", "$limit---$offset")
+        manageItemDataListEntity.clear()
+        progress_bar.show()
+        //Variable declaration
+        val mAPIService = ApiUtils.apiService
+
+        //TODO static
+        mAPIService.getResponseFromItemsApis(userDetails.businessGroupGroupId.toString(), limit, offset).enqueue(object :
+            Callback<ItemsDataModel> {
+
+            override fun onResponse(
+                call: Call<ItemsDataModel>,
+                response: Response<ItemsDataModel>
+            ) {
+                //Log.d("-----", "post to API." + response.body())
+                if (response.isSuccessful) {
+                    try {
+                        val itemDataModel = response.body()
+                        /*    Log.d("---- 1 ", itemDataModel!!.result[0].itemName)
+
+                            val name = itemDataModel.result[1].brandName?.brandName
+                            Log.d("----", name.toString())
+                            Log.d(
+                                "----4 P: ",
+                                itemDataModel.result[1].businessUnitGroupItem[0].itemSellingPrices.currentPackagePrice
+                            )
+                            Log.d("---- 6 ", itemDataModel.result[0].itemName)*/
+
+
+                        val status = itemDataModel!!.status
+                        val message = itemDataModel.message
+                        recordCount = itemDataModel.recordsCount.toString()
+                        pageNo = itemDataModel.pageNo
+                        val pageNos = itemDataModel.pageNo
+
+                        //mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+
+                        val resultArray = itemDataModel.result.toList()
+
+                        for (elementOfResult in resultArray) {
+                            //Log.d("---- 1 :", "" + elementOfResult.itemName)
+
+                            val resultId = elementOfResult.id
+                            //val resultUsageCode = elementOfResult.usageCode.toString()
+                            val resultItemName = elementOfResult.itemName
+                            //val resultDescription = elementOfResult.description
+                            //val resultLongDescription = elementOfResult.longDescription.toString()
+
+                            val resultQtyOnHand = elementOfResult.qtyOnHand.toString()
+                            val resultQtyInCase = elementOfResult.qtyInCase.toString()
+                            val resultSize = elementOfResult.size
+
+
+                            val resultBrandNameBrandName = elementOfResult.brandName?.brandName.toString()
+
+                            //Log.d("---- 8: ", resultPriceLineHighAmount)
+
+
+                            // RBUGI = resultBusinessUnitGroupItem
+                            // RBUGIBUG = ResultBusinessUnitGroupItemBusinessUnitGroup
+                            // RBUGIISP = resultBusinessUnitGroupItemItemSellingPrices
+                            // RBUGIISPISP = ItemSellingPrices
+                            // RBUGISI = ResultBusinessUnitGroupItemSiteIdentity
+
+                            val rBUGIList = elementOfResult.businessUnitGroupItem.toList()
+
+                            for (elementOfRBUGI in rBUGIList) {
+                                //val rBUGIId = elementOfRBUGI.id.toString()
+                                //val rBUGIItem = elementOfRBUGI.item.toString()
+                                //val rBUGIMinInventoryLevel = elementOfRBUGI.minInventoryLevel.toString()
+                                //val rBUGIMaxInventoryLevel = elementOfRBUGI.maxInventoryLevel.toString()
+
+                                //Log.d("---- 9: ", rBUGIItem.toString())
+
+                                val rBUGIBUG = elementOfRBUGI.businessUnitGroup
+                                //val rBUGIISPId = rBUGIBUG.id.toString()
+                                //val rBUGIISPBusinessUnitGroupName = rBUGIBUG.businessUnitGroupName
+                                // Log.d("---- 10: ", rBUGIItem.toString())
+
+                                val rBUGIISPISP = elementOfRBUGI.itemSellingPrices
+                                //val rBUGIISPISPId = rBUGIISPISP?.id.toString()
+                                val rBUGIISPISPCurrentPackagePrice = rBUGIISPISP?.currentPackagePrice.toString()
+                                val rBUGIISPISPCost = rBUGIISPISP?.cost.toString()
+                                val rBUGIISPISPMargin = rBUGIISPISP?.margin.toString()
+                                //val rBUGIISPISPProfit = rBUGIISPISP?.profit.toString()
+
+
+                                val resultUpcAList = elementOfResult.upcA.toList()
+
+                                for (elementOfResultUpcAListIndex in resultUpcAList.indices) {
+                                    //Log.d("----upcA: ", "" + resultUpcAList[elementOfResultUpcAListIndex])
+                                    val upcaId = resultUpcAList[elementOfResultUpcAListIndex].toString()
+
+                                    manageItemDataListEntity.add(
+                                        ManageItemModelEntity(
+                                            upcaId,
+                                            status.toString(),
+                                            resultItemName,
+                                            resultBrandNameBrandName,
+                                            resultSize,
+                                            rBUGIISPISPCurrentPackagePrice,
+                                            rBUGIISPISPCost,
+                                            "1",
+                                            resultQtyOnHand,
+                                            "",
+                                            resultQtyInCase,
+                                            rBUGIISPISPMargin,
+                                            upcaId,
+                                            recordCount
+                                        )
+                                    )
+                                }
+
+
+                            }
+                        }
+
+                        itemsRepository.saveManageItems(manageItemDataListEntity)
+
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        progress_bar.hide()
+                    }
+
+                    initRecyclerViewData()
+                    progress_bar.hide()
+                }
+            }
+
+            override fun onFailure(call: Call<ItemsDataModel>, t: Throwable) {
+                progress_bar.hide()
+
+                t.printStackTrace()
+            }
+        })
+    }
+
+    private fun initRecyclerViewData() {
+        progress_bar.show()
+        mif_items_per_page_tv_counts.text = "$pageNo of $limit of $recordCount"
+        if (manageItemDataListEntity.size > 0) {
+            mif_no_data_found.hide()
+        } else mif_no_data_found.show()
+
+        // Set the adapter and Layout Manager of the RecyclerView
+        mLayoutManager = LinearLayoutManager(context)
+        manage_items_fragment_rv.layoutManager = mLayoutManager
+        itemsRVAdapter = ItemsRVAdapter(manageItemDataListEntity)
+        manage_items_fragment_rv.adapter = itemsRVAdapter
+        itemsRVAdapter.notifyDataSetChanged()
+
+        manage_items_fragment_rv.addOnItemTouchListener(
+            RecyclerViewTouchListener(
+                activity,
+                manage_items_fragment_rv,
+                object : RecyclerViewTouchListener.ClickListener {
+                    override fun onClick(
+                        view: View?,
+                        position: Int
+                    ) {
+                        // show/hide edit option according to background color of row
+                        var color: Int = Color.TRANSPARENT
+                        val background = view!!.background
+                        if (background is ColorDrawable) {
+                            color = background.color
+                            // Log.d("----", "bg color $color")
+                        }
+
+                        when (color) {
+                            -1 -> {
+                                adminModeDrawerEditOptionLL.visibility = View.VISIBLE
+                                // manage_items_details_extended_layout.visibility = View.VISIBLE
+
+                                slideFromRight(
+                                    manage_items_details_extended_layout,
+                                    activity
+                                )
+
+                            }
+                            -3929 -> {
+                                adminModeDrawerEditOptionLL.visibility = View.GONE
+                                //manage_items_details_extended_layout.visibility = View.GONE
+
+                                slideToRight(
+                                    manage_items_details_extended_layout,
+                                    activity
+                                )
+                            }
+
+
+                            //setUpItemDetailsLayout()
+                        }
+
+
+                        //setUpItemDetailsLayout()
+                    }
+
+                    override fun onLongClick(view: View?, position: Int) {}
+                })
+        )
+
+        // Set the scroll Listener of the RecyclerView
+        //setRVScrollListener()
+
+        progress_bar.hide()
+    }
+
+    //interface for drag and drop data in column view
+    override fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
+        addModifyColumnTouchHelper.startDrag(viewHolder)
+    }
+
+    private fun showAddModifyColumnCheckedDialog() {
+
+        //itemDownloadDialog = null to show new dialog interface otherwise dialog will show previous dialog
+
+        ////////////////////////////////////////////////////
+        //  making Alert dialog - admire beauty of kotlin //
+        ////////////////////////////////////////////////////
+        itemDownloadDialog = showManageItemsSaveCheckedModifyColumnAlertDialog {
+
+            cancelable = false
+
+            closeIconClickListener {
+            }
+
+            doneIconClickListener {
+
+            }
+
+            cancelClickListener {
+
+            }
+        }
+        //  and showing
+        itemDownloadDialog?.show()
+    }
+
+
+    // Code for pop up window on Add Filter click
+    override fun onStop() {
+        super.onStop()
+        dismissPopup()
+    }
+
+    private fun dismissPopup() {
+        filterPopup?.let {
+            if (it.isShowing) {
+                it.dismiss()
+            }
+            filterPopup = null
+        }
+    }
+
+    private fun dismissFilterEqualOrNotEqualPopup() {
+        filterEqualOrNotEqualPopup?.let {
+            if (it.isShowing) {
+                it.dismiss()
+            }
+            filterEqualOrNotEqualPopup = null
+        }
+    }
+
+    private fun getFilterItems(): List<FilterItem> {
+        filterItemList = ArrayList()
+        filterItemList.add(FilterItem("Item Selling Rule"))
+        filterItemList.add(FilterItem("POS Department"))
+        filterItemList.add(FilterItem("Brand"))
+        filterItemList.add(FilterItem("Description"))
+        filterItemList.add(FilterItem("Supplier Name"))
+        filterItemList.add(FilterItem("Size Name"))
+        filterItemList.add(FilterItem("Margin"))
+        filterItemList.add(FilterItem("Profit"))
+        filterItemList.add(FilterItem("Product#"))
+        filterItemList.add(FilterItem("Business Unit"))
+        filterItemList.add(FilterItem("Supplier Name"))
+        filterItemList.add(FilterItem("Size Name"))
+        filterItemList.add(FilterItem("Margin"))
+        filterItemList.add(FilterItem("Profit"))
+        filterItemList.add(FilterItem("Product#"))
+        filterItemList.add(FilterItem("Business Unit"))
+
+        return filterItemList
+    }
+
+    private fun showPopUpFilter(): PopupWindow {
+        val popupView =
+            LayoutInflater.from(activity)
+                .inflate(R.layout.custom_popup_window_add_filter_layout, null)
+
+        val searchRV = popupView.add_filter_list_recyclerView
+        val searchViewEditText = popupView.add_filter_et_search
+        val addFilterTitle = popupView.add_filter_tv_title
+        val addFilterDropdownLayout = popupView.add_filter_dropdown_layout
+        val spinnerTitleTv = popupView.add_filter_adv_layout_tv_spinner_title
+        val btnApply = popupView.add_filter_adv_layout_btn_apply
+        val tvEqualOrNotEqual = popupView.add_filter_adv_layout_tv_dropdown_equal_or_not_list
+
+        popupView.add_filter_tv_title.setOnClickListener {
+            dismissPopup()
+        }
+
+        btnApply.setOnClickListener {
+            // dismiss main popup window
+
+            if (spinnerTitleTv.text.toString().isNotEmpty()) {
+                selectedFilteredList.add(FilterItem(addFilterTitle.text.toString() + tvEqualOrNotEqual.text + spinnerTitleTv.text.toString()))
+                showPopUpFilteredSelectedDataInHorizonRv()
+
+                setTextOfAddFilterBtn()
+
+                dismissPopup()
+
+            } else if (spinnerTitleTv.text.toString().isEmpty()) {
+                spinnerTitleTv.startAnimation(
+                    AnimationUtils.loadAnimation(
+                        activity,
+                        R.anim.anim_shake
+                    )
+                )
+            }
+        }
+
+        //show another popup
+        popupView.add_filter_adv_layout_tv_dropdown_equal_or_not_list.setOnClickListener {
+            filterEqualOrNotEqualPopup = showPopUpFilterEqualAndNotEqual(popupView)
+            filterEqualOrNotEqualPopup?.isOutsideTouchable = false
+            filterEqualOrNotEqualPopup?.isFocusable = true
+            filterEqualOrNotEqualPopup?.setBackgroundDrawable(ColorDrawable(Color.WHITE))
+            filterEqualOrNotEqualPopup?.showAsDropDown(popupView.add_filter_adv_layout_tv_dropdown_equal_or_not_list)
+        }
+
+        popupView.add_filter_adv_layout_spinner_layout.setOnClickListener {
+            AddFilterMultiSelectSpinnerDialog().showAddFilterMultiSelectSpinnerDialog(
+                activity,
+                spinnerTitleTv
+            )
+        }
+
+
+        searchViewEditText.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(newString: Editable?) {
+                searchFilterOnAddFilter(newString.toString())
+            }
+
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+
+            }
+
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
+            }
+        })
+
+        //init RV add filter list data
+        searchRV.layoutManager = LinearLayoutManager(activity)
+        searchRV.addItemDecoration(
+            DividerItemDecoration(
+                searchRV.context,
+                DividerItemDecoration.VERTICAL
+            )
+        )
+
+        addFilterAdapter = AddFilterAdapter(fragContext)
+        addFilterAdapter.addAlertFilter(getFilterItems())
+        searchRV.adapter = addFilterAdapter
+        addFilterAdapter.selectedItem(selectedItem)
+
+        addFilterAdapter.setOnClick(object : RecyclerViewCallbacks<FilterItem> {
+            override fun onItemClick(view: View, position: Int, item: FilterItem) {
+                selectedItem = position
+                Toast.makeText(activity, "data = $item", Toast.LENGTH_SHORT).show()
+
+                addFilterTitle.text = item.name
+                addFilterDropdownLayout.visibility = View.VISIBLE
+            }
+        })
+
+        return PopupWindow(
+            popupView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
+    private fun setTextOfAddFilterBtn() {
+        if (selectedFilteredList.size == 0) admin_mode_btn_add_filter.text =
+            resources.getString(R.string.add_filter)
+        else admin_mode_btn_add_filter.text = resources.getString(R.string.add_more_filter)
+    }
+
+    private fun showPopUpFilteredSelectedDataInHorizonRv() {
+        setTextOfAddFilterBtn()
+        //init RV searchFilteredHorizonRV data
+        searchFilteredHorizonRV.layoutManager =
+            LinearLayoutManager(activity, LinearLayoutManager.HORIZONTAL, false)
+        searchFilteredHorizonRV.addItemDecoration(
+            DividerItemDecoration(
+                searchFilteredHorizonRV.context,
+                DividerItemDecoration.HORIZONTAL
+            )
+        )
+
+        addFilterSelectedAdapter = AddFilterSelectedAdapter(fragContext)
+        addFilterSelectedAdapter.addAlertFilter(selectedFilteredList)
+        searchFilteredHorizonRV.adapter = addFilterSelectedAdapter
+        addFilterSelectedAdapter.selectedItem(selectedItem)
+        addFilterSelectedAdapter.notifyDataSetChanged()
+
+        addFilterSelectedAdapter.setOnClick(object : RecyclerViewCallbacks<FilterItem> {
+            override fun onItemClick(view: View, position: Int, item: FilterItem) {
+                selectedItem = position
+
+                setTextOfAddFilterBtn()
+
+                //removing data from list then getting updated list from adapter
+                selectedFilteredList.clear()
+                selectedFilteredList.addAll(addFilterSelectedAdapter.removeAt(position))
+            }
+        })
+    }
+
+    private fun showPopUpFilterEqualAndNotEqual(popupView: View): PopupWindow {
+        val popUpFilterEqualAndNotEqual =
+            LayoutInflater.from(activity)
+                .inflate(R.layout.custom_popup_window_on_equal_iv_inside_add_filter_layout, null)
+
+        popUpFilterEqualAndNotEqual.add_filter_tv_equals.setOnClickListener {
+            popupView.add_filter_adv_layout_tv_dropdown_equal_or_not_list.text =
+                resources.getString(R.string.sign_equal)
+            dismissFilterEqualOrNotEqualPopup()
+        }
+
+        popUpFilterEqualAndNotEqual.add_filter_tv_not_equals.setOnClickListener {
+            popupView.add_filter_adv_layout_tv_dropdown_equal_or_not_list.text =
+                resources.getString(R.string.sign_not_equal)
+            dismissFilterEqualOrNotEqualPopup()
+        }
+
+        return PopupWindow(
+            popUpFilterEqualAndNotEqual,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+    }
+
+    fun searchFilterOnAddFilter(text: String) {
+
+        val filteredSearchModelAry: ArrayList<FilterItem> = ArrayList()
+
+        val searchModelAry: ArrayList<FilterItem> = filterItemList
+
+        for (eachCourse in searchModelAry) {
+            if (eachCourse.name.toLowerCase(Locale.getDefault()).contains(text.toLowerCase(Locale.getDefault()))) {
+                filteredSearchModelAry.add(eachCourse)
+            }
+        }
+
+        //calling a method of the adapter class and passing the filtered list
+        addFilterAdapter.addAlertFilter(filteredSearchModelAry);
+    }
+
+    private fun setUpItemDetailsLayout() {
+        setupViewPager(mif_viewpager)
+
+        mif_tabs!!.setupWithViewPager(mif_viewpager)
+
+        // set icons
+        mif_tabs.getTabAt(0)!!.setIcon(R.drawable.ic_info_sign)
+        mif_tabs.getTabAt(1)!!.setIcon(R.drawable.ic_box)
+        mif_tabs.getTabAt(2)!!.setIcon(R.drawable.ic_shelves)
+    }
+
+    private fun setupViewPager(viewPager: ViewPager) {
+        val adapter = MIFViewPagerAdapter(activity!!.supportFragmentManager)
+        //adapter.addFragment(MIFItemBasicDetails(),"Item Basic Details")
+        adapter.addFragment(MIFItemBasicDetails(), "")
+        adapter.addFragment(MIFSupplier(), "")
+        adapter.addFragment(MIFShelfDetails(), "")
+        viewPager.adapter = adapter
+    }
+
+    internal inner class MIFViewPagerAdapter(manager: FragmentManager) :
+        FragmentPagerAdapter(manager, BEHAVIOR_RESUME_ONLY_CURRENT_FRAGMENT) {
+        private val mFragmentList = ArrayList<Fragment>()
+        private val mFragmentTitleList = ArrayList<String>()
+
+        override fun getItem(position: Int): Fragment {
+            return mFragmentList[position]
+        }
+
+        override fun getCount(): Int {
+            return mFragmentList.size
+        }
+
+        fun addFragment(fragment: Fragment, title: String) {
+            mFragmentList.add(fragment)
+            mFragmentTitleList.add(title)
+        }
+
+        override fun getPageTitle(position: Int): CharSequence {
+            return mFragmentTitleList[position]
+        }
+    }
+}

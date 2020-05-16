@@ -1,0 +1,10 @@
+chat_img_rec_audio.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                // start your timer
+
+            } else if (event.action == MotionEvent.ACTION_UP) {
+                // stop your timer.
+
+            }
+            false
+        }

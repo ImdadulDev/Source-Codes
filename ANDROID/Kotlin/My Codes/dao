@@ -1,0 +1,101 @@
+package com.android.io.data.db.daos
+
+import androidx.lifecycle.LiveData
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.android.io.data.db.entities.ManageItemModelEntity
+
+@Dao
+interface ManageItemsDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun saveAllManageItems(manageItemEntities: List<ManageItemModelEntity?>)
+
+    @Query("SELECT * FROM ManageItemModelEntity")
+    fun getManageItems(): LiveData<List<ManageItemModelEntity>>
+
+    //@Query("SELECT * FROM ManageItemModelEntity LIMIT 25")
+    //@Query("SELECT * FROM user LIMIT :limit")
+
+    @Query("SELECT * FROM ManageItemModelEntity  LIMIT :limit OFFSET :offset")
+    fun getManageItemsBySize(limit:String, offset:String): List<ManageItemModelEntity?>
+
+    @Query("SELECT * FROM ManageItemModelEntity  WHERE resultId OR description LIKE '%' || :filterTxt || '%'")
+    fun getManageItemsByFilterTxtWithSimilarTypeData(filterTxt:String): List<ManageItemModelEntity>
+
+    @Query("SELECT * FROM ManageItemModelEntity  WHERE resultId = :barcode")
+    fun getManageItemsByBarcode(barcode:String): List<ManageItemModelEntity>
+
+
+    //@Query("SELECT * FROM ManageItemModelEntity WHERE pageNo IN (:pageNo)")
+
+
+    /*
+   @Query("SELECT * FROM ManageItemModelEntity WHERE pageNo = :pageNo")
+   fun getManageItemsById(pageNo: String): List<ManageItemModelEntity>
+
+   @Query("SELECT * FROM ManageItemModelEntity WHERE pageNo = :pageNo")
+   fun loadManageItemsById(pageNo: String): ManageItemModelEntity
+
+   // Query examples to use
+
+   @Query("SELECT * FROM user LIMIT :limit OFFSET :offset")
+    User[] loadAllUsersByPage(int limit,int offset);
+
+   @Query("SELECT * FROM customer WHERE uid IN (:customersId)")
+   fun loadAllByIds(customersId: Array<Int>): List<Customer>
+
+
+   @get:Query("SELECT * FROM customer")
+   val all: List<Customer>
+
+   @Query("SELECT * FROM customer WHERE uid IN (:customersId)")
+   fun loadAllByIds(customersId: Array<Int>): List<Customer>
+
+   @Query("SELECT * FROM customer WHERE first_name LIKE :first AND " + "last_name LIKE :last LIMIT 1")
+   fun findByName(first: String, last: String): Customer
+
+   @Insert
+   fun insertAll(customers: List<Customer>)
+
+   @Delete
+   fun delete(client: Customer)
+
+   @get:Query("SELECT * FROM bill")
+   val all: List<Bill>
+
+   @Query("SELECT * FROM bill WHERE uid IN (:billIds)")
+   fun loadAllByIds(billIds: Array<Int>): List<Bill>
+
+   @Query("SELECT * FROM bill WHERE customer_id = :uid")
+   fun findByCustomerId(uid: Int): List<Bill>
+
+   @Insert
+   fun insertAll(bills: List<Bill>)
+
+   @Insert
+   fun insert(bill: Bill)
+
+   @Delete
+   fun delete(bill: Bill)
+
+   @get:Query("SELECT * FROM provider")
+   val all: List<Provider>
+
+   @Query("SELECT * FROM provider WHERE uid IN (:providerIds)")
+   fun loadAllByIds(providerIds: IntArray): List<Provider>
+
+   @Query("SELECT * FROM provider WHERE name LIKE :name LIMIT 1")
+   fun findByName(name: String): Provider
+
+   @Insert
+   fun insertAll(providers: List<Provider>)
+
+   @Delete
+   fun delete(provider: Provider)
+
+   */
+   
+   
+}

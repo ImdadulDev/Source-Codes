@@ -1,0 +1,9 @@
+
+implementation "com.github.bumptech.glide:glide:3.7.0"
+
+val uri: Uri = Your Uri here
+
+Glide.with(activity!!).load("$uri").apply(RequestOptions.circleCropTransform().circleCrop()).into(IMG_IMAGE)
+
+Glide.with(applicationContext).load(messageModel.attachment)
+                            .apply(RequestOptions.centerInsideTransform()).into(sendAttachmentImg)

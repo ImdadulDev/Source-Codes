@@ -1,0 +1,10 @@
+///////////////
+for (element in arrayList){
+  // element.var
+}
+
+
+///////////////
+(collection or ArrayList).forEachIndexed { index, element ->
+    // your code
+}

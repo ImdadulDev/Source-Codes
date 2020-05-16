@@ -1,0 +1,17 @@
+ fun saveArrayList(
+        salesModeItemDetailsDataList: ArrayList<SalesModeListModel>
+    ) {
+        val editor = sharedPref.edit()
+        val gson = Gson()
+        val json = gson.toJson(salesModeItemDetailsDataList)
+        editor.putString("sales_mode_locked_list", json)
+        editor.apply()
+    }
+
+    fun retrieveList() : ArrayList<SalesModeListModel>{
+        val gson = Gson()
+        val json = sharedPref.getString("sales_mode_locked_list", null)
+        val type: Type = object : TypeToken<List<SalesModeListModel?>?>() {}.type
+        val arrayList: ArrayList<SalesModeListModel> = gson.fromJson<ArrayList<SalesModeListModel>>(json, type)
+        return arrayList
+    }

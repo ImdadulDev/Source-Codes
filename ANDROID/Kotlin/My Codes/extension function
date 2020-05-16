@@ -1,0 +1,235 @@
+package com.android.io.helpers
+
+import android.app.Activity
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.DisplayMetrics
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
+import com.android.io.R
+import com.google.android.material.snackbar.Snackbar
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.*
+
+
+fun showSnackBar(
+    context: Context,
+    view: View,
+    msg: String,
+    string: String
+) {
+    val snack = Snackbar.make(
+        view,
+        msg,
+        Snackbar.LENGTH_LONG
+    )
+    snack.setBackgroundTint(ContextCompat.getColor(context, R.color.grey_dark))
+    snack.setTextColor(ContextCompat.getColor(context, R.color.white))
+    snack.setActionTextColor(ContextCompat.getColor(context, R.color.colorPrimary))
+    snack.setAction("Close") {
+        snack.dismiss()
+    }
+
+    snack.show()
+}
+
+fun showSnackBar(
+    context: Context,
+    view: View,
+    msg: String,
+    btnTxt: String,
+    action: (View) -> Unit
+) {
+    val snack = Snackbar.make(
+        view,
+        msg,
+        Snackbar.LENGTH_LONG
+
+    )
+    snack.setBackgroundTint(ContextCompat.getColor(context, R.color.grey_dark))
+    snack.setTextColor(ContextCompat.getColor(context, R.color.white))
+    snack.setActionTextColor(ContextCompat.getColor(context, R.color.colorPrimary))
+    snack.setAction(btnTxt) {
+        snack.dismiss()
+    }
+
+    snack.show()
+}
+
+
+fun View.showSnackbar(msgId: Int, length: Int) {
+    showSnackbar(context.getString(msgId), length)
+}
+
+fun View.showSnackbar(msg: String, length: Int) {
+    showSnackbar(msg, length, null) {}
+}
+
+fun View.showSnackbar(
+    msgId: Int,
+    length: Int,
+    actionMessageId: Int,
+    action: (View) -> Unit
+) {
+    showSnackbar(context.getString(msgId), length, context.getString(actionMessageId), action)
+}
+
+fun View.showSnackbar(
+    msg: String,
+    length: Int,
+    actionMessage: CharSequence?,
+    action: (View) -> Unit
+) {
+    val snackbar = Snackbar.make(this, msg, length)
+    if (actionMessage != null) {
+        snackbar.setAction(actionMessage) {
+            action(this)
+        }.show()
+    }
+}
+
+fun showAlertDialog(context: Context, title: String, msg: String): Boolean {
+
+    var returnValue: Boolean = false
+
+    // Initialize a new instance of
+    val builder = AlertDialog.Builder(context, R.style.AlertDialogCustom)
+
+    // Set the alert dialog title
+    builder.setTitle(title)
+
+    // Display a message on alert dialog
+    builder.setMessage(msg)
+
+    // Set a positive button and its click listener on alert dialog
+    builder.setPositiveButton("Ok") { dialog, _ ->
+        // Do something when user press the positive button
+        dialog.dismiss()
+
+        returnValue = true
+    }
+
+
+    // Display a negative button on alert dialog
+    builder.setNegativeButton("No") { dialog, _ ->
+        dialog.dismiss()
+
+        returnValue = false
+    }
+
+    // Finally, make the alert dialog using builder
+    val dialog: AlertDialog = builder.create()
+
+    // Display the alert dialog on app interface
+    dialog.show()
+
+    return returnValue
+}
+
+
+@Suppress("DEPRECATION")
+fun checkNetworkState(context: Context): Boolean {
+    val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val nw = connectivityManager.activeNetwork ?: return false
+        val actNw = connectivityManager.getNetworkCapabilities(nw) ?: return false
+        return when {
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+            actNw.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+            else -> false
+        }
+    } else {
+        val nwInfo = connectivityManager.activeNetworkInfo ?: return false
+        return nwInfo.isConnected
+    }
+}
+
+fun EditText.onChange(cb: (String) -> Unit) {
+    this.addTextChangedListener(object : TextWatcher {
+        override fun afterTextChanged(s: Editable?) {}
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            cb(s.toString())
+        }
+    })
+}
+
+fun getCurrentDate(): String {
+    val currentDateAndTime: String
+    currentDateAndTime = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val current = LocalDateTime.now()
+        val formatter = DateTimeFormatter.ofPattern("dd MMM, YYYY")
+        current.format(formatter)
+        //println("Current Date and Time is: $currentDateAndTime")
+    } else {
+        val date = Date()
+        val formatter = SimpleDateFormat("dd MMM, YYYY", Locale.getDefault())
+        formatter.format(date)
+        //Log.d("answer",formatter.format(date))
+    }
+
+    return currentDateAndTime
+}
+
+fun getFormattedDateAndTimeTime(): String {
+    val currentDateAndTime: String
+    currentDateAndTime = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val current = LocalDateTime.now()
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        current.format(formatter)
+        //println("Current Date and Time is: $currentDateAndTime")
+    } else {
+        val date = Date()
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        formatter.format(date)
+        //Log.d("answer",formatter.format(date))
+    }
+
+    return currentDateAndTime
+}
+
+fun getDateAndTimeDifference(beginDate: String): Int {
+    val date = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(beginDate)
+
+    //val userDob = SimpleDateFormat("yyyy-MM-dd").parse("2020-02-16")
+    val today = Date()
+    val diff = today.time - date.time
+    val numOfDays = (diff / (1000 * 60 * 60 * 24)).toInt()
+
+
+    //println("--- 4: $numOfDays")
+
+    return numOfDays
+}
+
+fun getDisplayWidth(activity: Activity): Int {
+    val displayMetrics = DisplayMetrics()
+    activity.windowManager.defaultDisplay.getMetrics(displayMetrics)
+    return displayMetrics.widthPixels
+}
+
+fun getDisplayHeight(activity: Activity): Int {
+    val displayMetrics = DisplayMetrics()
+    activity.windowManager.defaultDisplay.getMetrics(displayMetrics)
+    return displayMetrics.heightPixels
+}
+
+fun Context.hideKeyboard(view: View) {
+    val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+    inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+}
+
+fun getFormatDecimalData(value:Double): String{
+   return "%.2f".format(value)
+}
+

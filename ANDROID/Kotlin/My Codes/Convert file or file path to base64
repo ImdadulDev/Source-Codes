@@ -1,0 +1,11 @@
+   private fun convertImageFileToBase64(imageFile: File): String {
+        return FileInputStream(imageFile).use { inputStream ->
+            ByteArrayOutputStream().use { outputStream ->
+                Base64OutputStream(outputStream, Base64.DEFAULT).use { base64FilterStream ->
+                    inputStream.copyTo(base64FilterStream)
+                    base64FilterStream.close() // This line is required, see comments
+                    outputStream.toString()
+                }
+            }
+        }
+    }

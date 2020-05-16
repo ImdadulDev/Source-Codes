@@ -1,0 +1,11 @@
+
+      In menifest:
+      
+      android:configChanges="keyboardHidden"
+      android:windowSoftInputMode="stateAlwaysHidden" 
+
+      // method to disable android soft keyboard
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM,
+            WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+        )

@@ -1,0 +1,198 @@
+package com.android.io.data.network
+
+import com.android.io.data.network.bodyrawjson.*
+import com.android.io.ui.datamanagement.models.ItemDetailsByBarcodeModel
+import com.android.io.ui.datamanagement.models.ItemsDataModel
+import com.android.io.ui.datamanagement.models.PosTransactionModel
+import com.android.io.data.network.responses.*
+import com.android.io.ui.datamanagement.models.SignOnTransactionModel
+import okhttp3.OkHttpClient
+import retrofit2.Call
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.*
+
+interface Apis {
+
+    //user login api
+    //?userid=12345&DeviceAddress=f98b3480ecad4d92&accessPassword=5678
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+    @POST("loginapi/")
+    suspend fun getLoginDataFromApi(
+        @Body userLoginBodyModel: UserLoginBodyModel
+    ): Response<UserLoginResponse>
+
+
+    //user pos transaction api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+
+    @POST("postransaction/")
+    suspend fun getPosTransactionDataFromApi(
+        @Body posTransactionBodyModel: PosTransactionBodyModel
+    ): Response<PosTransactionModel>
+
+    //user pos transaction api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+
+    @POST("signon-transaction/")
+    suspend fun getSignOnTransactionDataFromApi(
+        @Body signOnTransactionBodyModel: SignOnTransactionBodyModel
+    ): Response<SignOnTransactionModel>
+
+
+    //user pos lock api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+
+    @POST("poslock-transaction/")
+    suspend fun getPosLockDataFromApi(
+        @Body posLockBodyModel: PosTransactionBodyModel
+    ): Response<PosLockResponse>
+
+    //user pos unlock api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+
+    @POST("posunlock-transaction/")
+    suspend fun getPosUnlockDataFromApi(
+        @Body posUnlockResponse: PosUnlockBodyModel
+    ): Response<PosUnlockResponse>
+
+    //user pos logout api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+
+    @POST("poslogout-transaction/")
+    suspend fun getLogoutApi(
+        @Body posLogoutTransactionBody: PosLogoutTransactionBody
+    ): Response<PosLogoutTransactionResponse>
+
+
+
+    // column-details api
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 6ff49ceac4c3de75325231aed487d4792bf3fc06"
+    )
+
+    @GET("column-details/?ModuleName=Items&") //TODO static
+    suspend fun getColumnDataFromApi(
+        //@Query("ModuleName") moduleName: String
+    ): Response<ColumnResponse>
+
+
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 6ff49ceac4c3de75325231aed487d4792bf3fc06"
+    )
+    @GET("poslist/?")
+    suspend fun getFilterFromApi(
+        @Query("colname") filterBy: String
+    ): Response<FilterResponse>
+
+
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 68ad45fbd302f064742a7768e74fcf1041151fc7"
+    )
+    @GET
+    suspend fun getItemDetailsByBarcodeFromApi(
+        @Url url:String
+    ): Response<ItemDetailsByBarcodeModel>
+
+
+    companion object {
+        operator fun invoke(
+            networkConnectionInterceptor: NetworkConnectionInterceptor
+        ): Apis {
+
+            val okkHttpclient = OkHttpClient.Builder()
+                .addInterceptor(networkConnectionInterceptor)
+                .build()
+
+            return Retrofit.Builder()
+                .client(okkHttpclient)
+                .baseUrl(ApiConstants.BASE_URL_LOCAL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(Apis::class.java)
+        }
+    }
+
+    @POST("register")
+    @FormUrlEncoded
+    fun registrationPost(
+        @Field("email") email: String,
+        @Field("password") password: String
+    ): Call<String>
+
+    //user login api
+    //?userid=12345&DeviceAddress=f98b3480ecad4d92&accessPassword=5678
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 6ff49ceac4c3de75325231aed487d4792bf3fc06"
+    )
+    @POST("loginapi/")
+    fun getLoginDataFromServerApi(
+        @Body userLoginBodyModel: UserLoginBodyModel
+    ): Call<UserLoginResponse>
+
+
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 6ff49ceac4c3de75325231aed487d4792bf3fc06"
+    )
+    @GET
+    fun getItemDetailsByBarcodeFromServerApi(
+        @Url url:String
+    ): Call<ItemDetailsByBarcodeModel>
+
+
+    @Headers(
+        "Accept: application/json",
+        "Content-Type: application/json",
+        "Authorization: Token 6ff49ceac4c3de75325231aed487d4792bf3fc06"
+    )
+
+    @GET("itemapis/items/?")
+    fun getResponseFromItemsApis(
+        @Query("business_group") business_group: String,
+        @Query("limit") limit: String,
+        @Query("offset") offset: String
+    ): Call<ItemsDataModel>
+
+    //fun getResponseFromItemsApi(): Call<JsonObject>
+}
+
+object ApiUtils {
+    val apiService: Apis
+        get() = RetrofitClient.getClient(ApiConstants.BASE_URL)!!.create(Apis::class.java)
+
+}

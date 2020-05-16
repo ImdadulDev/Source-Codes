@@ -1,0 +1,805 @@
+package com.android.io.ui.activities
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.util.Log
+import android.view.KeyEvent
+import android.view.MenuItem
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.PopupMenu
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.android.io.R
+import com.android.io.data.network.ApiUtils
+import com.android.io.data.preferences.PreferenceHelper
+import com.android.io.data.repositories.ItemsRepository
+import com.android.io.data.repositories.SalesModeRepository
+import com.android.io.helpers.*
+import com.android.io.listeners.OnItemClickListener
+import com.android.io.listeners.RecyclerViewTouchListener
+import com.android.io.ui.datamanagement.adpters.SalesModeButtonLayoutGridRecyclerAdapter
+import com.android.io.ui.datamanagement.adpters.SalesModeListAdapter
+import com.android.io.ui.datamanagement.adpters.SearchAdapter
+import com.android.io.ui.datamanagement.models.ItemDetailsByBarcodeModel
+import com.android.io.ui.datamanagement.models.SalesModeButtonsLayoutModel
+import com.android.io.ui.datamanagement.models.SalesModeListModel
+import com.android.io.ui.datamanagement.models.SearchModel
+import com.android.io.ui.fragments.SaleModeExtendedBottomSheetFragment
+import com.android.io.util.Coroutines
+import com.android.io.util.checkSelfPermissionCompat
+import com.android.io.util.requestPermissionsCompat
+import com.android.io.util.shouldShowRequestPermissionRationaleCompat
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.android.synthetic.main.activity_sales_mode.*
+import kotlinx.android.synthetic.main.content_rv_sales_mode_items.view.*
+import org.kodein.di.KodeinAware
+import org.kodein.di.android.kodein
+import org.kodein.di.generic.instance
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.util.*
+import kotlin.collections.ArrayList
+
+class SalesMode : AppCompatActivity(), KodeinAware, SaleModeExtendedBottomSheetFragment.BottomSheetListener {
+
+    override val kodein by kodein()
+    private val salesModeRepository: SalesModeRepository by instance()
+    private val itemsRepository: ItemsRepository by instance()
+
+    private var salesModeItemDetailsDataList = ArrayList<SalesModeListModel>()
+    private var salesModeListAdapter: SalesModeListAdapter? = null
+    private lateinit var rootLayout: View
+    private var clickedButtonText = "barcode_scan"
+    private lateinit var searchAdapter: SearchAdapter
+    private var searchDataList = ArrayList<SearchModel>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sales_mode)
+
+        /*
+        val api = ApiList()
+        val repository = SalesModeListRepository(api)
+
+        factory = SalesModeListViewModelFactory(repository)
+        //viewModel = ViewModelProviders.of(this, factory).get(SalesModeListViewModel::class.java)
+        val viewModel = ViewModelProvider(this, factory).get(SalesModeListViewModel::class.java)
+
+        viewModel.getData()
+
+        viewModel.salesModelList.observe(this, Observer { salesModeItemList ->
+            recycler_view_movies.also {
+                it.layoutManager = LinearLayoutManager(applicationContext)
+                it.setHasFixedSize(true)
+                it.adapter = SalesModeListAdapter(salesModeItemList, this)
+            }
+        })
+        */
+
+
+
+        initRvAndAddDataToItemDataList()
+
+        //initializing views
+        initViews()
+
+        //Implementing buttons
+        initButtonsLayoutGridView()
+
+        //Implementing search code
+        initSearchView()
+    }
+
+    override fun onStart() {
+        try {
+            val intent = intent
+            val isSHowList = intent.getBooleanExtra("showList", false)
+            val retrieveList = PreferenceHelper(applicationContext).retrieveList()
+            if (retrieveList.size > 0 && isSHowList) {
+                intent.putExtra("showList", false)
+
+                salesModeItemDetailsDataList.addAll(retrieveList)
+
+                initRvAndAddDataToItemDataList()
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        super.onStart()
+    }
+
+    private fun initSearchView() {
+        sales_mode_rv_search_list.layoutManager =
+            LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+
+        searchDataList.clear()
+        searchAdapter = SearchAdapter(this, searchDataList)
+        sales_mode_rv_search_list.adapter = searchAdapter
+
+        sales_mode_rv_search_list.addOnItemTouchListener(
+            RecyclerViewTouchListener(
+                applicationContext,
+                sales_mode_rv_search_list,
+                object : RecyclerViewTouchListener.ClickListener {
+                    override fun onClick(
+                        view: View?,
+                        position: Int
+                    ) {
+                        Log.d("----", "search data: " + searchDataList.size)
+                        hideKeyboard()
+                        addDataToItemDataList(position)
+                        // sending null data to clear search field after item selected
+                        sales_mode_et_search.setText("")
+                    }
+
+                    override fun onLongClick(view: View?, position: Int) {}
+                })
+        )
+
+        //open camera activity and scanning barcode and getting the code in onActivityResult
+        sales_mode_search_views_scanner.setOnClickListener {
+            //openCameraActivity()
+
+            // setting hint to understand by user to scan product by barcode scanner
+            //sales_mode_et_search.requestFocus()
+            sales_mode_et_search.hint = "Scan product"
+            clickedButtonText = "barcode_scan"
+        }
+
+        // Getting data from local db
+        sales_mode_et_search.onChange { text ->
+            if (text.isEmpty()) {
+                sales_mode_rv_search_list!!.visibility = View.GONE
+            } else {
+                sales_mode_rv_search_list!!.visibility = View.VISIBLE
+            }
+
+            filterData(text)
+        }
+
+        // Scanner inserting data into edit text then pressing Enter
+        // Getting data by barcode scanner from local db else from api
+        sales_mode_et_search.setOnKeyListener(object : View.OnKeyListener {
+            override fun onKey(
+                v: View?,
+                keyCode: Int,
+                event: KeyEvent
+            ): Boolean { // If the event is a key-down event on the "enter" button
+
+                if (event.action == KeyEvent.ACTION_DOWN &&
+                    keyCode == KeyEvent.KEYCODE_ENTER
+                ) {
+                    // Perform action on key press
+
+                    val barcode = sales_mode_et_search.text.toString().trim()
+
+                    getItemDataByBarcode(barcode)
+
+                    return true
+                }
+
+                return false
+            }
+        })
+    }
+
+    private fun filterData(text: String) = Coroutines.main {
+
+        val filteredSearchModelAry: ArrayList<SearchModel> = ArrayList()
+
+        if (clickedButtonText == "Lookup") {
+
+            val localDataList = itemsRepository.getManageItemsByFilterTxtWithSimilarTypeData(text)
+
+            if (localDataList.isNotEmpty()) {
+                sales_mode_search_txt_no_record.visibility = View.GONE
+
+                val searchModelAry: ArrayList<SearchModel> = ArrayList()
+
+                for (element in localDataList) {
+                    searchModelAry.add(
+                        SearchModel(
+                            element.resultId,
+                            element.description,
+                            element.currentPrice,
+                            element.quantity,
+                            element.currentCost
+                        )
+                    )
+                }
+
+                for (element in searchModelAry) {
+                    if (element.salesItemListId.toLowerCase(Locale.getDefault()).contains(text.toLowerCase(Locale.getDefault()))
+                        || element.salesItemListTitle!!.toLowerCase(Locale.getDefault()).contains(
+                            text.toLowerCase(Locale.getDefault())
+                        )
+                    ) {
+                        filteredSearchModelAry.add(element)
+                    }
+                }
+
+                // adding data to get data from searchDataList when user click on the filtered list
+                searchDataList.clear()
+                searchDataList.addAll(filteredSearchModelAry)
+
+                //calling a method of the adapter class and passing the filtered list
+                searchAdapter.filterList(filteredSearchModelAry)
+
+            } else {
+                filteredSearchModelAry.clear()
+                searchAdapter.filterList(filteredSearchModelAry)
+                sales_mode_search_txt_no_record.visibility = View.VISIBLE
+            }
+        }
+
+        if (text.isEmpty()) sales_mode_search_txt_no_record.visibility = View.GONE
+    }
+
+    private fun initViews() {
+        try {
+            sales_mode_toolbar_date.text = getCurrentDate()
+
+            requestFocusScanEtSearch()
+            // Gets linear layout
+            val layout: LinearLayout = findViewById(R.id.sales_mode_item_list_ll_rv)
+
+            // Gets the layout params that will allow you to resize the layout
+            val params = layout.layoutParams
+            params.width = (getDisplayWidth(this) / 2.8).toInt()
+            layout.layoutParams = params
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        rootLayout = findViewById(R.id.sales_mode_root_layout)
+
+        val intent = intent
+        intent.getStringExtra("opening_balance")
+
+        home_user_img.setOnClickListener {
+            showPopupMenu(it)
+        }
+    }
+
+    private fun doCalculation(position: Int, itemView: View) {
+
+        try {
+            if (salesModeItemDetailsDataList[position].quantity.isNotEmpty()) {
+
+                var totalItemCount: Int? = 0
+                var totalPriceCount: Double? = 0.0
+                var totalItemCountInRowOfList: Int?
+                var totalPriceCountInRowOfList: Double?
+
+                for (i in 0 until salesModeItemDetailsDataList.size) {
+
+                    totalItemCountInRowOfList =
+                        salesModeItemDetailsDataList[position].quantity.toInt()
+
+                    totalPriceCountInRowOfList =
+                        totalItemCountInRowOfList.toDouble() * (salesModeItemDetailsDataList[position].eachPrice.toDouble())
+
+                    totalItemCount =
+                        totalItemCount!! + (salesModeItemDetailsDataList[i].quantity.toInt())
+
+                    totalPriceCount = totalPriceCount!! +
+                            (salesModeItemDetailsDataList[i].quantity.toDouble() * (salesModeItemDetailsDataList[i].eachPrice.toDouble()))
+
+                    //Log.d("----- total ", "$totalItemCount,  $totalPriceCount")
+
+                    setDataOnEachRowOfList(
+                        itemView,
+                        position,
+                        totalItemCount,
+                        totalPriceCount,
+                        totalPriceCountInRowOfList
+                    )
+                }
+                // Log.d("---- total itemCount ", totalItemCount.toString())
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun setDataOnEachRowOfList(
+        itemView: View,
+        position: Int,
+        totalItemCount: Int,
+        totalPriceCount: Double,
+        totalPriceCountInRowOfList: Double
+    ) {
+        salesModeItemDetailsDataList[position].totalPrice = totalPriceCountInRowOfList.toString()
+        val itemBasePrice: String = salesModeItemDetailsDataList[position].eachPrice
+
+        //Log.d("------", "itemPrice: itemCount: $totalPriceCount:  $totalItemCount")
+
+        //adding data to SalesModeListModel to make changes
+        //salesModeItemDetailsDataList[position].totalPrice = totalPrice
+
+        //adding data to text views in sales mode data list
+        itemView.sales_mode_list_item_total_price.text =
+            getString(R.string.price_with_dollar_sign, getFormatDecimalData(totalPriceCountInRowOfList))
+
+        itemView.sales_mode_list_item_each_price.text =
+            getString(R.string.price_with_dollar_sign, getFormatDecimalData(itemBasePrice.toDouble()))
+
+        //adding data to text views in calculation part
+        sales_mode_calc_tv_item_count.text = totalItemCount.toString()
+
+        sales_mode_calc_tv_point.text = "0"
+        sales_mode_calc_tv_subtotal.text =
+            getString(R.string.price_with_dollar_sign, getFormatDecimalData(totalPriceCount))
+        sales_mode_calc_tv_discount.text = getString(R.string.zero_doler)
+        sales_mode_calc_tv_sales_tax.text = getString(R.string.zero_doler)
+        sales_mode_calc_tv_total.text =
+            getString(R.string.price_with_dollar_sign, getFormatDecimalData(totalPriceCount))
+        sales_mode_calc_tv_payments.text = getString(R.string.zero_doler)
+        sales_mode_calc_tv_balance.text =
+            getString(R.string.price_with_dollar_sign, getFormatDecimalData(totalPriceCount))
+
+
+        // sending null data to clear search field
+        sales_mode_et_search.setText("")
+    }
+
+
+    //Code for sales mode buttons layout
+    private fun initButtonsLayoutGridView() {
+        val layoutCalc: LinearLayout = findViewById(R.id.sales_mode_ll_calculation)
+        val layoutBtns: LinearLayout = findViewById(R.id.sales_mode_ll_btns)
+        Log.d("----", "h: " + getDisplayHeight(this))
+
+        val paramsCalc = layoutCalc.layoutParams
+        paramsCalc.height = (getDisplayHeight(this) / 2.4).toInt()
+        Log.d("----cas ", ""+ paramsCalc.height)
+        layoutCalc.layoutParams = paramsCalc
+
+        val paramsBtns = layoutBtns.layoutParams
+        paramsBtns.height = (getDisplayHeight(this) - paramsCalc.height)
+        layoutBtns.layoutParams = paramsBtns
+
+        sales_mode_rv_calculation_buttons_layout.layoutManager = GridLayoutManager(this, 5)
+        //This will for default android divider
+        //sales_mode_rv_calculation_buttons_layout.addItemDecoration(GridItemDecoration(20, 5))
+
+        val buttonsTextListAdapter = SalesModeButtonLayoutGridRecyclerAdapter(this, paramsCalc.height)
+        sales_mode_rv_calculation_buttons_layout.adapter = buttonsTextListAdapter
+        buttonsTextListAdapter.setButtonList(generateSalesModeKeysData())
+
+        sales_mode_rv_calculation_buttons_layout.addOnItemTouchListener(
+            RecyclerViewTouchListener(
+                applicationContext,
+                sales_mode_rv_calculation_buttons_layout,
+                object : RecyclerViewTouchListener.ClickListener {
+                    override fun onClick(
+                        view: View?,
+                        position: Int
+                    ) {
+                        //Log.d("-----", "" + position)
+
+                        clickedButtonText = generateSalesModeKeysData()[position].btnText
+                        //Log.d("----clickedBtnText 1: ", "" + clickedButtonText)
+
+                    }
+
+
+                    override fun onLongClick(view: View?, position: Int) {}
+                })
+        )
+    }
+
+    private fun generateSalesModeKeysData(): List<SalesModeButtonsLayoutModel> {
+        val listOfButtonsText = mutableListOf<SalesModeButtonsLayoutModel>()
+
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Lookup", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Other", R.color.green_100))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Clear", R.color.magnato_dark))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("X/Qty", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Enter", R.color.green_light_70))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Customer", R.color.pink_800))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Charge", R.color.green_100))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("1", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("2", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("3", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Item", R.color.deep_purple_600))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Check", R.color.green_100))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("4", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("5", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("6", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Function", R.color.blue_grey_600))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Subtotal", R.color.grey_900))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("7", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("8", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("9", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Discount", R.color.red_800))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("Cash", R.color.green_100))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("00", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel("0", R.color.blue_700))
+        listOfButtonsText.add(SalesModeButtonsLayoutModel(".", R.color.blue_700))
+
+        return listOfButtonsText
+    }
+
+    override fun onOptionClick(text: String) {
+        // Log.d("-----", text)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        // Log.d("----", " $requestCode" + grantResults[0])
+        if (requestCode == PERMISSION_REQUEST_CAMERA) {
+            // Request for camera permission.
+            if (grantResults.size == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission has been granted. Start camera preview Activity.
+                //root_layout.showSnackbar(R.string.camera_permission_granted, Snackbar.LENGTH_SHORT)
+                openBarcodeActivity()
+            } else {
+                // Permission request was denied.
+                rootLayout.showSnackbar(R.string.permission_denied, Snackbar.LENGTH_SHORT)
+            }
+        }
+    }
+
+    private fun openCameraActivity() {
+        // Check if the Camera permission has been granted
+        if (checkSelfPermissionCompat(Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            // Permission is already available, start camera preview
+            // root_layout.showSnackbar(R.string.permission_available, Snackbar.LENGTH_SHORT)
+            // Log.d("----", "" + checkSelfPermissionCompat(Manifest.permission.CAMERA))
+            openBarcodeActivity()
+        } else {
+            // Permission is missing and must be requested.
+            requestCameraPermission()
+        }
+    }
+
+    /**
+     * Requests the [android.Manifest.permission.CAMERA] permission.
+     * If an additional rationale should be displayed, the user has to launch the request from
+     * a SnackBar that includes additional information.
+     */
+    private fun requestCameraPermission() {
+        // Permission has not been granted and must be requested.
+        if (shouldShowRequestPermissionRationaleCompat(Manifest.permission.CAMERA)) {
+            // Provide an additional rationale to the user if the permission was not granted
+            // and the user would benefit from additional context for the use of the permission.
+            // Display a SnackBar with a button to request the missing permission.
+
+            rootLayout.showSnackbar(
+                R.string.camera_access_required,
+                Snackbar.LENGTH_INDEFINITE,
+                R.string.ok
+            ) {
+                requestPermissionsCompat(
+                    arrayOf(Manifest.permission.CAMERA),
+                    PERMISSION_REQUEST_CAMERA
+                )
+            }
+
+        } else {
+            rootLayout.showSnackbar(
+                R.string.permission_not_available,
+                Snackbar.LENGTH_SHORT
+            )
+
+            // Request the permission. The result will be received in onRequestPermissionResult().
+            requestPermissionsCompat(arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CAMERA)
+        }
+    }
+
+    companion object {
+        var scanResult: String? = null
+    }
+
+    private fun openBarcodeActivity() {
+        val intent = Intent(this, Scan::class.java)
+        startActivityForResult(intent, 0)
+    }
+
+    //getting barcode in this fun from Barcode Activity
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 0) {
+            if (resultCode == CommonStatusCodes.SUCCESS) {
+                //getItemDataByBarcode("110")
+                if (data != null) {
+                    val barcode = data.getStringExtra("barcode")
+                    //Log.d("----", "barcode: $barcode")
+
+                    if (checkNetworkState(applicationContext)) getItemDataByBarcode(barcode!!)
+                    else showSnackBar(
+                        applicationContext,
+                        rootLayout,
+                        getString(R.string.no_internet_connection),
+                        getString(R.string.ok)
+                    )
+
+                    showSnackBar(
+                        applicationContext,
+                        rootLayout,
+                        "Barcode: $barcode",
+                        getString(R.string.ok)
+                    )
+
+                    // Log.d(TAG, "Barcode value:${barcode.displayValue}")
+
+                    //calling item details api using barcode to get item details
+                    //getItemDataByBarcode(barcode.displayValue)
+
+                } else {
+                    showSnackBar(
+                        applicationContext,
+                        rootLayout,
+                        "No barcode found",
+                        getString(R.string.ok)
+                    )
+                }
+            }
+        }
+    }
+
+    private fun getItemDataByBarcode(barcode: String) = Coroutines.main {
+        Log.d("----", "barcode: $barcode")
+        //clear search list then add fetch data to searchDataList
+        searchDataList.clear()
+        if (clickedButtonText == "barcode_scan") {
+            val localDataList = itemsRepository.getManageItemsByBarcode(barcode)
+            if (localDataList.isNotEmpty()) {
+                for (element in localDataList) {
+                    searchDataList.add(
+                        SearchModel(
+                            element.resultId,
+                            element.description,
+                            element.currentPrice,
+                            element.quantity,
+                            element.currentCost
+                        )
+                    )
+                }
+
+                addDataToItemDataList(0)
+                // sending null data to clear search field after item selected
+                sales_mode_et_search.setText("")
+                requestFocusScanEtSearch()
+
+            } else if (checkNetworkState(applicationContext)) {
+                try {
+                    val userDetails = itemsRepository.getUserDetailsFromDb()
+                    //Variable declaration
+                    val mAPIService = ApiUtils.apiService
+
+                    //TODO static
+                    mAPIService.getItemDetailsByBarcodeFromServerApi("itemapis/upctoitem/$barcode/?business_group=${userDetails.businessGroupGroupId}").enqueue(object :
+                        Callback<ItemDetailsByBarcodeModel> {
+
+                        override fun onResponse(
+                            call: Call<ItemDetailsByBarcodeModel>,
+                            response: Response<ItemDetailsByBarcodeModel>
+                        ) {
+                            Log.d("----", "barcode res: ${response.body()}")
+                            val itemDetailsByBarcodeModel= response.body()
+
+                            if (itemDetailsByBarcodeModel?.status == 1) {
+                                searchDataList.add(
+                                    SearchModel(
+                                        barcode,
+                                        itemDetailsByBarcodeModel.result.itemName,
+                                        itemDetailsByBarcodeModel.result.itemSellingPrices.currentPackagePrice,
+                                        "1",
+                                        itemDetailsByBarcodeModel.result.itemSellingPrices.currentPackagePrice //TODO static total price
+                                    )
+                                )
+
+                                addDataToItemDataList(0)
+
+                                // sending null data to clear search field after item selected
+                                sales_mode_et_search.setText("")
+
+                                requestFocusScanEtSearch()
+
+                            } else {
+                                itemDetailsByBarcodeModel?.message?.let {
+                                    showSnackBar(
+                                        applicationContext,
+                                        rootLayout,
+                                        it,
+                                        getString(R.string.ok)
+                                    )
+                                }
+                            }
+                        }
+
+                        override fun onFailure(call: Call<ItemDetailsByBarcodeModel>, t: Throwable) {
+                            t.printStackTrace()
+                        }
+                    })
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    fun onBackPressedOnSalesModePage(view: View) {
+        val intent = Intent(applicationContext, Dashboard::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    private fun initRvAndAddDataToItemDataList() {
+        if (salesModeItemDetailsDataList.size < 1) {
+            //show text when no data added on rv
+            sales_mode_tv_no_item_added.visibility = View.VISIBLE
+            sales_mode_item_list_rv.visibility = View.GONE
+
+        } else {
+            //hide text when data added on rv
+            sales_mode_tv_no_item_added.visibility = View.GONE
+            sales_mode_item_list_rv.visibility = View.VISIBLE
+        }
+
+        //Init RV to show item details
+        //adding a layoutManager
+        sales_mode_item_list_rv.layoutManager =
+            LinearLayoutManager(this, RecyclerView.VERTICAL, false)
+
+        //crating an arrayList to store users using the data class user
+        //salesModeItemDetailsDataList = ArrayList()
+
+        //creating our adapter
+        salesModeListAdapter = SalesModeListAdapter(salesModeItemDetailsDataList)
+
+        //now adding the adapter to recyclerview
+        sales_mode_item_list_rv.adapter = salesModeListAdapter
+        salesModeListAdapter!!.notifyDataSetChanged()
+
+        // implement custom onClickListener to get data from adapter when edit textChanged
+        salesModeListAdapter!!.mOnItemClickListener = object : OnItemClickListener {
+            override fun onItemClick(position: Int, itemView: View) {
+                //Log.d("----", text)
+                doCalculation(position, itemView)
+            }
+        }
+    }
+
+    private fun addDataToItemDataList(position: Int) {
+        try {
+            Log.d("----", "pos: $position")
+            if (salesModeItemDetailsDataList.any { x -> x.id == searchDataList[position].salesItemListId }) {
+                for (element in salesModeItemDetailsDataList) {
+                    if (element.id == searchDataList[position].salesItemListId) {
+                        //Log.d("----index of: ", "" + salesModeItemDetailsDataList.indexOf(element))
+                        element.quantity = (element.quantity.toInt() + 1).toString()
+                    }
+                }
+            } else {
+                salesModeItemDetailsDataList.add(
+                    SalesModeListModel(
+                        searchDataList[position].salesItemListId,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        searchDataList[position].salesItemListTitle.toString(),
+                        "",
+                        "",
+                        searchDataList[position].salesItemListQuantity.toString(),
+                        "",
+                        searchDataList[position].salesItemListPackagePrice.toString(),
+                        searchDataList[position].salesItemListPackagePrice.toString()
+                    )
+                )
+            }
+
+            salesModeListAdapter!!.notifyDataSetChanged()
+
+            if (salesModeItemDetailsDataList.size < 1) {
+                //show text when no data added on rv
+                sales_mode_tv_no_item_added.visibility = View.VISIBLE
+                sales_mode_item_list_rv.visibility = View.GONE
+
+            } else {
+                //hide text when data added on rv
+                sales_mode_tv_no_item_added.visibility = View.GONE
+                sales_mode_item_list_rv.visibility = View.VISIBLE
+            }
+
+            //calling a method of the adapter class to clear search rv
+            searchDataList.clear()
+            searchAdapter.filterList(searchDataList)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun showPopupMenu(view: View) {
+        val popup: PopupMenu?
+        popup = PopupMenu(this, view)
+        popup.inflate(R.menu.menu_sales_mode)
+
+        popup.setOnMenuItemClickListener(PopupMenu.OnMenuItemClickListener { item: MenuItem? ->
+
+            when (item!!.itemId) {
+                R.id.menu_setting -> {
+
+                }
+
+                R.id.menu_lock -> Coroutines.main {
+                    try {
+                        //Log.d("----", "pos lock res: " + salesModeRepository.callLockApi().toString())
+
+                        val posLockResponse = salesModeRepository.callLockApi()
+                        if (posLockResponse.status == 1) {
+                            //saving array list to get the data when user unlock the activity
+                            PreferenceHelper(applicationContext).saveArrayList(salesModeItemDetailsDataList)
+
+                            PreferenceHelper(applicationContext).saveSalesModeLockedStatus("SalesModeIsLocked", true)
+
+                            onBackPressed()
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                R.id.menu_logout -> Coroutines.main {
+                    if (checkNetworkState(applicationContext)) {
+                        itemsRepository.doLogoutApi()
+                        //Log.d("----", "logout res: $response")
+                    } else {
+                        itemsRepository.savePosLogoutTransactionData()
+                    }
+
+                    val intent = Intent(applicationContext, Login::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    startActivity(intent)
+                    finish()
+                }
+            }
+
+            true
+        })
+
+        popup.show()
+
+    }
+
+    fun Activity.hideKeyboard() {
+        hideKeyboard(currentFocus ?: View(this))
+    }
+
+    override fun onBackPressed() {
+        val intent = Intent(applicationContext, Dashboard::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    private fun requestFocusScanEtSearch(){
+        sales_mode_et_search.requestFocus()
+        sales_mode_et_search.hint = "Scan product"
+        hideKeyboard()
+    }
+}

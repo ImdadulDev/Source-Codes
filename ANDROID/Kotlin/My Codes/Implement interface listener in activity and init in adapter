@@ -1,0 +1,87 @@
+private lateinit var playerInterface: PlayerInterface
+
+onCreate(){
+playerInterface = ChatMessagesAdapter()
+}
+
+on pause(){
+playerInterface.stopPlayer()
+super.onPause()
+}
+
+
+implement interface in Adapter
+
+override fun stopPlayer() {
+            try {
+                Log.d("----",": stopPlayer called")
+                if(mPlayer != null && mPlayer!!.isPlaying){
+                    try {
+                        playPause = false
+                        mPlayer!!.stop()
+                        mPlayer!!.reset()
+                        mPlayer!!.release()
+                        mPlayer = null
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        
+ ///////////////////////
+ 
+ implement listener in adapter and listen in Activity
+ 
+ class ChapterAdapter(private val activity: Activity, val mWords: ArrayList<Chapter>, val btnlistener: BtnClickListener) : RecyclerView.Adapter<ChapterAdapter.ViewHolder>() {
+
+        companion object {
+            var mClickListener: BtnClickListener? = null
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val layoutInflater = LayoutInflater.from(parent.context)
+            return ViewHolder(layoutInflater.inflate(R.layout.layout_capter_raw, parent, false))
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder?, position: Int) {
+            mClickListener = btnlistener
+            val item = mWords[position]
+
+            holder.layout_chapter_name.setOnClickListener(object : View.OnClickListener {
+                override fun onClick(v: View?) {
+                    if (mClickListener != null)
+                        mClickListener?.onBtnClick(position)
+                }
+            })
+        }
+
+        override fun getItemCount(): Int {
+            return mWords.size
+        }
+
+        override fun getItemId(position: Int): Long {
+            return super.getItemId(position)
+        }
+
+        override fun getItemViewType(position: Int): Int {
+            return super.getItemViewType(position)
+        }
+
+        class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val txt_capter_name = view.txt_capter_name
+        }
+
+        open interface BtnClickListener {
+            fun onBtnClick(position: Int)
+        }
+    }
+After create and declare adapter in your Activity or Fragment.
+
+listAdapter = ChapterAdapter(activity, _arrChapterList, object : ChapterAdapter.BtnClickListener {
+                override fun onBtnClick(position: Int, chapter_id: String, chapter_size: String, chapter_name: String) {
+                    toast(chapter_id + " = " + chapter_size, Toast.LENGTH_LONG)
+                }
+            })

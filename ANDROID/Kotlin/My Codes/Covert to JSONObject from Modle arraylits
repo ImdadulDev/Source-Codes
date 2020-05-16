@@ -1,0 +1,49 @@
+// Extension fun kotlin
+emample: {"Values":[{"chatUserId":"5e89c8ee60f46f3b5ccbb659"},{"chatUserId":"5e858f6d60f46f3b5ccbb578"},{"chatUserId":"5e8ab0d760f46f3b5ccbbcfd"}]}
+
+fun itemListToJsonConvert(list: ArrayList<ContactEntity>): String {
+    val jResult = JSONObject() // main object
+    val jArray = JSONArray() // /ItemDetail jsonArray
+
+    for (i in 0 until list.size) {
+        val jGroup = JSONObject() // /sub Object
+        try {
+            jGroup.put("chatUserId", list[i].cbc_id)
+            jArray.put(jGroup)
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+    }
+
+    // /itemDetail Name is JsonArray Name
+    jResult.put("Values", jArray)
+    return jResult.toString()
+}
+
+/// in java 
+
+public void itemListToJsonConvert(ArrayList<HashMap<String, String>> list) {
+
+        JSONObject jResult = new JSONObject();// main object
+        JSONArray jArray = new JSONArray();// /ItemDetail jsonArray
+
+        for (int i = 0; i < list.size(); i++) {
+            JSONObject jGroup = new JSONObject();// /sub Object
+
+            try {
+                jGroup.put("ItemMasterID", list.get(i).get("ItemMasterID"));
+                jGroup.put("ID", list.get(i).get("id"));
+                jGroup.put("Name", list.get(i).get("name"));
+                jGroup.put("Category", list.get(i).get("category"));
+
+                jArray.put(jGroup);
+
+                // /itemDetail Name is JsonArray Name
+                jResult.put("itemDetail", jArray);
+                return jResult;
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+
+    }

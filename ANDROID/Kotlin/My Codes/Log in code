@@ -1,0 +1,225 @@
+package com.android.io.ui.activities
+
+import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
+import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.android.io.R
+import com.android.io.data.db.entities.UserLoginEntity
+import com.android.io.data.network.ApiUtils
+import com.android.io.data.network.bodyrawjson.UserLoginBodyModel
+import com.android.io.data.network.responses.UserLoginResponse
+import com.android.io.data.preferences.PreferenceHelper
+import com.android.io.data.repositories.AuthRepository
+import com.android.io.helpers.*
+import com.android.io.ui.inflateViews.ViewDialog
+import com.android.io.util.Coroutines
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.android.synthetic.main.activity_login.*
+import org.kodein.di.KodeinAware
+import org.kodein.di.android.kodein
+import org.kodein.di.generic.instance
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+
+
+class Login : AppCompatActivity(), KodeinAware {
+
+    override val kodein by kodein()
+    private val authRepository: AuthRepository by instance()
+    private val preferenceHelper: PreferenceHelper by instance()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
+
+        val params: ViewGroup.LayoutParams = login_ll.layoutParams
+        params.width = (getDisplayWidth(this) / 4)
+        params.height = (getDisplayHeight(this) / 3)
+        login_ll.layoutParams = params
+
+        Log.d("----", (getDisplayWidth(this) / 7).toString() + " , " + (getDisplayWidth(this) / 3))
+
+        val etUserId = findViewById<EditText>(R.id.loginUserIDTextInputEditText)
+        val etUserPassword = findViewById<EditText>(R.id.loginPasswordTextInputEditText)
+
+        //doing login when user press enter key on keyboard
+        etUserPassword.setOnKeyListener(object : View.OnKeyListener {
+            override fun onKey(
+                v: View?,
+                keyCode: Int,
+                event: KeyEvent
+            ): Boolean { // If the event is a key-down event on the "enter" button
+
+                if (event.action == KeyEvent.ACTION_DOWN &&
+                    keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_TAB
+                ) { // Perform action on key press
+                    //Toast.makeText(this@Login, etUserId.text, Toast.LENGTH_SHORT).show()
+                    doLoginValidation(etUserId.text.toString(), etUserPassword.text.toString())
+
+                    return true
+                }
+
+
+                return false
+            }
+        })
+
+        login_btn_continue.setOnClickListener {
+            doLoginValidation(etUserId.text.toString(), etUserPassword.text.toString())
+        }
+
+    }
+
+    override fun onStart() {
+        super.onStart()
+        try {
+            supportActionBar!!.hide()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
+    private fun doLoginValidation(inputUserIdValue: String, inputUserPass: String) {
+        if (!isValidUserId(inputUserIdValue)) {
+            showSnackBar(
+                applicationContext,
+                login_root_layout,
+                "User ID shouldn't be less than 4 digits",
+                getString(R.string.ok)
+            )
+            loginUserIDTextInputEditText.error = "Enter valid User ID"
+            return
+        }
+
+        if (!isValidPassword(inputUserPass)) {
+            showSnackBar(
+                applicationContext,
+                login_root_layout,
+                "Password shouldn't be less than 4 digits",
+                getString(R.string.ok)
+            )
+            loginPasswordTextInputEditText.error = "Enter valid Password"
+            return
+        }
+
+        doLogin(inputUserIdValue, inputUserPass)
+
+    }
+
+    @SuppressLint("HardwareIds")
+    private fun doLogin(inputUserIdValue: String, inputUserPass: String){
+        //login_root_layout.progress_bar_login.show()
+        val progressDialog = ViewDialog(this)
+        progressDialog.showDialog()
+        try {
+            if (checkNetworkState(applicationContext)) {
+                val androidId = Settings.Secure.getString(applicationContext.contentResolver, Settings.Secure.ANDROID_ID)
+                //Log.d("----", "android_id: $androidId")
+                //android_id: f98b3480ecad4d92
+
+                val userLoginBodyModel =
+                    UserLoginBodyModel(inputUserIdValue, "f98b3480ecad4d92", inputUserPass) // TODO static
+
+                //val userLoginResponse = authRepository.getUserLoginResponse(userLoginBodyModel) // to call local api
+
+                //Log.d("----", userLoginResponse.name)
+
+                //Variable declaration
+                val mAPIService = ApiUtils.apiService
+
+                //TODO static
+                mAPIService.getLoginDataFromServerApi(userLoginBodyModel).enqueue(object :
+                    Callback<UserLoginResponse> {
+
+                    override fun onResponse(
+                        call: Call<UserLoginResponse>,
+                        response: Response<UserLoginResponse>
+                    ) {
+                        Log.d("----", "login res: " + response.body())
+
+                        val userLoginResponse = response.body()
+
+                        if (userLoginResponse?.status == 1) {
+                            val userLoginEntity = UserLoginEntity(
+                                userLoginResponse.status.toString(),
+                                userLoginResponse.message,
+                                userLoginResponse.name,
+                                getFormattedDateAndTimeTime(),
+                                userLoginResponse.operatorid.toString(),
+                                userLoginResponse.token,
+                                userLoginResponse.workstationid,
+                                userLoginResponse.businessGroup[0].functionId,
+                                userLoginResponse.businessGroup[0].groupName,
+                                userLoginResponse.businessGroup[0].noOfSelections,
+                                userLoginResponse.businessgroupFunctions[0],
+                                userLoginResponse.businessuits[0],
+                                userLoginResponse.businessGroup[0].groupId[0]
+                            )
+
+                            preferenceHelper.saveBeginTime("begin_time", getFormattedDateAndTimeTime())
+                            authRepository.saveUserLoginData(userLoginEntity)
+
+                            preferenceHelper.saveUserIdAndPass("user_id", inputUserIdValue, "user_pass", inputUserPass)
+
+                            preferenceHelper.saveOpeningStatus("OpeningStatus", "firstTime")
+
+                            val intent = Intent(applicationContext, Dashboard::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            finish()
+                        } else if (userLoginResponse?.status == 0) {
+                            val snackbar = Snackbar.make(login_root_layout!!, userLoginResponse.message, Snackbar.LENGTH_INDEFINITE)
+                            // Set an action on it, and a handler
+                            snackbar.setAction("Copy") {
+                                copyText(userLoginResponse.message)
+                                snackbar.dismiss()
+                            }
+                            snackbar.show()
+                        }
+                    }
+
+                    override fun onFailure(call: Call<UserLoginResponse>, t: Throwable) {
+                        t.printStackTrace()
+                    }
+                })
+
+
+            } else {
+                login_root_layout.snackBarLengthLongWithAction(resources.getString(R.string.no_internet_connection))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            progressDialog.hideDialog()
+        }
+
+        //login_root_layout.progress_bar_login.hide()
+        progressDialog.hideDialog()
+    }
+
+    // on click copy button
+    private fun copyText(message: String) {
+        val myClipboard: ClipboardManager = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val myClip: ClipData = ClipData.newPlainText("copied_text", message.split("Your")[0])
+        myClipboard.setPrimaryClip(myClip);
+
+        Toast.makeText(this, "Workstation Id Copied", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onBackPressed() {
+        finish()
+    }
+}
+
