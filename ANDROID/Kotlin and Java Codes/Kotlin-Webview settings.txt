@@ -1,0 +1,36 @@
+pdfRenderWebView = view.findViewById(R.id.pdfRenderWebView);
+
+                pdfRenderWebView.getSettings().setJavaScriptEnabled(true);
+                pdfRenderWebView.getSettings().setAllowContentAccess(true);
+                pdfRenderWebView.getSettings().setAllowFileAccessFromFileURLs(true);
+                pdfRenderWebView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+                pdfRenderWebView.getSettings().setDomStorageEnabled(true);
+                pdfRenderWebView.getSettings().setLoadsImagesAutomatically(true);
+                pdfRenderWebView.getSettings().setUseWideViewPort(true);
+                pdfRenderWebView.getSettings().setAllowFileAccess(true);
+                pdfRenderWebView.getSettings().setPluginState(WebSettings.PluginState.ON);
+                pdfRenderWebView.getSettings().setLoadWithOverviewMode(true);
+                pdfRenderWebView.getSettings ().setUseWideViewPort (true);
+                pdfRenderWebView.setVerticalScrollBarEnabled(false);
+                pdfRenderWebView.setHorizontalScrollBarEnabled(false);
+                pdfRenderWebView.setScrollContainer(false);
+                pdfRenderWebView.getSettings().setSupportZoom(false);
+                pdfRenderWebView.getSettings().setJavaScriptCanOpenWindowsAutomatically(false);
+                pdfRenderWebView.clearCache(true);
+                pdfRenderWebView.clearHistory();
+
+                //---you need this to prevent the webview from
+                // launching another browser when a url
+                // redirection occurs---
+                pdfRenderWebView.setWebViewClient(new Callback());
+                pdfRenderWebView.setWebViewClient(new WebViewClient());
+                pdfRenderWebView.setWebChromeClient(new WebChromeClient());
+            }
+
+            private class Callback extends WebViewClient {
+                @Override
+                public boolean shouldOverrideUrlLoading(
+                        WebView view, String url) {
+                    return (false);
+                }
+            }

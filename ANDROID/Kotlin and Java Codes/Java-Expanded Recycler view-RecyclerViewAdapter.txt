@@ -1,0 +1,96 @@
+import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.ghraapp.R;
+import com.example.ghraapp.model.LicencingFeeTitleModel;
+
+import java.util.ArrayList;
+
+
+public class LicencingFeeRecyclerAdapter extends RecyclerView.Adapter<LicencingFeeRecyclerAdapter.MyViewHolder> {
+    private ArrayList<LicencingFeeTitleModel> licencingFeeTitleModels;
+
+    private int mExpandedPosition= -1;
+    private int previousExpandedPosition = -1;
+
+    public LicencingFeeRecyclerAdapter(ArrayList<LicencingFeeTitleModel> licencingFeeTitleModels) {
+        this.licencingFeeTitleModels = licencingFeeTitleModels;
+    }
+
+    @NonNull
+    @Override
+    public LicencingFeeRecyclerAdapter.MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.content_licencing_fee_parent_child_listing, parent, false);
+        return new MyViewHolder(itemView);
+    }
+
+    @Override
+    public void onBindViewHolder(LicencingFeeRecyclerAdapter.MyViewHolder holder, final int position) {
+        LicencingFeeTitleModel licencingFeeTitleModel = licencingFeeTitleModels.get(position);
+        holder.title.setText(licencingFeeTitleModel.getTitle());
+        holder.content.setText(licencingFeeTitleModel.getContent());
+
+	//Expand only one item and other items collapsed
+        final boolean isExpanded = position==mExpandedPosition;
+        holder.ll_content.setVisibility(isExpanded?View.VISIBLE:View.GONE);
+        holder.itemView.setActivated(isExpanded);
+
+        if (isExpanded)
+            previousExpandedPosition = position;
+
+        holder.title.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mExpandedPosition = isExpanded ? -1:position;
+                notifyItemChanged(previousExpandedPosition);
+                notifyItemChanged(position);
+            }
+        });
+
+
+
+/*	// Expand multiple items
+
+final boolean isExpanded = position==mExpandedPosition;
+holder.details.setVisibility(isExpanded?View.VISIBLE:View.GONE);
+holder.itemView.setActivated(isExpanded);
+holder.itemView.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        mExpandedPosition = isExpanded ? -1:position;
+        notifyItemChanged(position);
+    }
+}); */
+    }
+
+    @Override
+    public int getItemCount() {
+        return licencingFeeTitleModels.size();
+    }
+
+    static class MyViewHolder extends RecyclerView.ViewHolder {
+        private Context context;
+        private TextView title, content;
+        private LinearLayout ll_content;
+        private ImageView imgLicenceFeeShow;
+
+        MyViewHolder(View itemView) {
+            super(itemView);
+            context = itemView.getContext();
+            title = itemView.findViewById(R.id.tv_title);
+            ll_content = itemView.findViewById(R.id.ll_title_content);
+            imgLicenceFeeShow = itemView.findViewById(R.id.iv_licenceFee_show);
+            content = itemView.findViewById(R.id.tv_title_content);
+
+        }
+
+    }
+}

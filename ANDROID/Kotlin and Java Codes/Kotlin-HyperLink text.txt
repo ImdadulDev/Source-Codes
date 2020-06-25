@@ -1,0 +1,30 @@
+				// xml:
+				
+				<TextView
+                android:id="@+id/tv_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:layout_below="@+id/tv_date"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:autoLink="web"
+                android:linksClickable="true"
+                android:textColorLink="@color/reddish_grey_deep_100"/>				
+
+
+			// Code:
+
+			TextView textView =(TextView)findViewById(R.id.textView);
+			textView.setClickable(true);
+			textView.setMovementMethod(LinkMovementMethod.getInstance());
+			String text = "<a href='http://www.google.com'> Google </a>";
+			
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                textView.setText(Html.fromHtml(getIntent().getStringExtra("Desc"), Html.FROM_HTML_MODE_COMPACT));
+            } else {
+                textView.setText(Html.fromHtml(getIntent().getStringExtra("Desc")));
+            }

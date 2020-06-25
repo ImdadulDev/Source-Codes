@@ -1,0 +1,72 @@
+
+////////////// UI
+
+<LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="start|center"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Payment Mode:"
+            android:textAlignment="center"
+            android:textSize="14sp"
+            android:padding="5dp" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupPaymentMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="start|center"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/radioButtonOnline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="Online"
+                android:textSize="13sp"
+                android:padding="8dp"/>
+
+            <RadioButton
+                android:id="@+id/radioButtonOffline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="Offline"
+                android:textSize="13sp"
+                android:padding="8dp"
+                android:layout_margin="8dp" />
+        </RadioGroup>
+
+    </LinearLayout>
+	
+	////////////////////////Code 
+	
+	RadioGroup radioGroup = view.findViewById(R.id.radioGroup);
+	
+	radioGroup.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener()
+        {
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+                // checkedId is the RadioButton selected
+                RadioButton radioButton = view.findViewById(checkedId);
+                String radioBtnTxt = radioButton.getText().toString();
+                Log.d("----", "radioBtnTxt 1 : " + radioBtnTxt);
+            }
+        });
+	
+	//////////////RadioButton onClick
+	
+		radioButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(radioButton.isChecked()){
+                    //code here
+                }
+            }
+        });

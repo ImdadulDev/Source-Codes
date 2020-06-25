@@ -1,0 +1,45 @@
+github:  https://github.com/journaldev/journaldev/tree/master/Android/AndroidDialogFragment
+web for more details: https://www.journaldev.com/23096/android-dialogfragment
+
+Enter and exit animation: 
+
+// Slide up animation
+
+<?xml version="1.0" encoding="utf-8"?> <set xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <translate
+        android:duration="@android:integer/config_mediumAnimTime"
+        android:fromYDelta="100%"
+        android:interpolator="@android:anim/accelerate_interpolator"
+        android:toXDelta="0" />
+
+</set>
+
+// Slide dowm animation
+
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <translate
+        android:duration="@android:integer/config_mediumAnimTime"
+        android:fromYDelta="0%p"
+        android:interpolator="@android:anim/accelerate_interpolator"
+        android:toYDelta="100%p" />
+
+</set>
+
+// Style
+
+<style name="DialogAnimation">
+    <item name="android:windowEnterAnimation">@anim/slide_up</item>
+    <item name="android:windowExitAnimation">@anim/slide_down</item>
+</style>
+
+// Inside Dialog Fragment
+
+@Override
+public void onActivityCreated(Bundle arg0) {
+    super.onActivityCreated(arg0);
+    getDialog().getWindow()
+    .getAttributes().windowAnimations = R.style.DialogAnimation;
+}

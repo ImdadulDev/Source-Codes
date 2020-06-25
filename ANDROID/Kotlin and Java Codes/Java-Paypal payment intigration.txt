@@ -1,0 +1,258 @@
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Bundle;
+
+import com.example.ghraapp.R;
+import com.google.android.material.textfield.TextInputEditText;
+import com.paypal.android.sdk.payments.PayPalAuthorization;
+import com.paypal.android.sdk.payments.PayPalConfiguration;
+import com.paypal.android.sdk.payments.PayPalFuturePaymentActivity;
+import com.paypal.android.sdk.payments.PayPalPayment;
+import com.paypal.android.sdk.payments.PayPalService;
+import com.paypal.android.sdk.payments.PaymentActivity;
+import com.paypal.android.sdk.payments.PaymentConfirmation;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+
+/////////Got code from GHRA android app
+public class PayPalActivity extends AppCompatActivity {
+
+    private ImageView mBack;
+    private ACProgressFlower dialog;
+    ApiManager manager = new ApiManager();
+
+    //data init for paypal
+    private static final String CONFIG_ENVIRONMENT = PayPalConfiguration.ENVIRONMENT_SANDBOX;
+
+    // note that these credentials will differ between live & sandbox
+    // environments.
+    private static final String CONFIG_CLIENT_ID = "AZ_ZzkM4PZy0N5yUiqyJoDBubT-9_SLZYBqA6PGCSmOqTdi8-kTPbcrqrQUi9D43GGIGBv_ok36kNjE5";
+    //private static final String CONFIG_CLIENT_ID = "AW37ZFuKOQHz94ybC3rm8n6A1VOKEcfIv-YghyT2ZekhJdy9CNA3LfU_fprGvJjtlYx4_ZTAx3H3NBGO";
+
+
+    private static final int REQUEST_CODE_PAYMENT = 1;
+    private static final int REQUEST_CODE_FUTURE_PAYMENT = 2;
+
+    private static PayPalConfiguration config = new PayPalConfiguration()
+            .environment(CONFIG_ENVIRONMENT)
+            .clientId(CONFIG_CLIENT_ID)
+            // the following are only used in PayPalFuturePaymentActivity.
+            .merchantName("Hipster Store")
+            .merchantPrivacyPolicyUri(
+                    Uri.parse("https://www.example.com/privacy"))
+            .merchantUserAgreementUri(
+                    Uri.parse("https://www.example.com/legal"));
+
+    PayPalPayment thingToBuy;
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_authorization_form);
+
+        mBack = findViewById(R.id.ic_back);
+        mBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed();
+            }
+        });
+
+        //init paypal sdk activity
+        Intent intent = new Intent(this, PayPalService.class);
+        intent.putExtra(PayPalService.EXTRA_PAYPAL_CONFIGURATION, config);
+        startService(intent);
+		
+		//opening paypal sdk to payment
+		payWithPayPal();
+    }
+
+
+    private void payWithPayPal() {
+        thingToBuy = new PayPalPayment(new BigDecimal("100"), "USD",
+                "Payble Amount", PayPalPayment.PAYMENT_INTENT_SALE);
+        Intent intent = new Intent(AuthorizationForm.this,
+                PaymentActivity.class);
+
+        intent.putExtra(PaymentActivity.EXTRA_PAYMENT, thingToBuy);
+
+        startActivityForResult(intent, REQUEST_CODE_PAYMENT);
+
+    }
+
+    public void onFuturePaymentPressed(View pressed) {
+        Intent intent = new Intent(AuthorizationForm.this,
+                PayPalFuturePaymentActivity.class);
+
+        startActivityForResult(intent, REQUEST_CODE_FUTURE_PAYMENT);
+    }
+
+    @SuppressLint("MissingSuperCall")
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_PAYMENT) {
+            if (resultCode == Activity.RESULT_OK) {
+                PaymentConfirmation confirm = data
+                        .getParcelableExtra(PaymentActivity.EXTRA_RESULT_CONFIRMATION);
+                if (confirm != null) {
+                    try {
+                        System.out.println(confirm.toJSONObject().toString(4));
+                        System.out.println(confirm.getPayment().toJSONObject()
+                                .toString(4));
+
+                        JSONObject jsonObject = new JSONObject(confirm.toJSONObject().toString(4));
+                        String transId = jsonObject.getJSONObject("response").getString("id");
+                        String status = jsonObject.getJSONObject("response").getString("state");
+                        String paymentDetails = confirm.toJSONObject().toString(4);
+
+                        //Toast.makeText(this, ""+transId, Toast.LENGTH_SHORT).show();
+                        Log.d("Trans_id", transId);
+                        Log.d("paypal_p_status", status);
+                        Log.d("payment_details", paymentDetails);
+
+                        //Toast.makeText(getApplicationContext(), "Order placed",
+                        //Toast.LENGTH_LONG).show();
+                        //Transaction_ID = transId;
+                        savePlanDetailsWithPayment(transId, paymentDetails, status);
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                //System.out.println("The user canceled.");
+                Toast.makeText(this, "" + "The user canceled.", Toast.LENGTH_SHORT).show();
+            } else if (resultCode == PaymentActivity.RESULT_EXTRAS_INVALID) {
+                Toast.makeText(this, "An invalid Payment or PayPalConfiguration was submitted. Please see the docs.", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == REQUEST_CODE_FUTURE_PAYMENT) {
+            if (resultCode == Activity.RESULT_OK) {
+                assert data != null;
+                PayPalAuthorization auth = data
+                        .getParcelableExtra(PayPalFuturePaymentActivity.EXTRA_RESULT_AUTHORIZATION);
+                if (auth != null) {
+                    try {
+                        Log.i("FuturePaymentExample", auth.toJSONObject()
+                                .toString(4));
+
+                        String authorization_code = auth.getAuthorizationCode();
+                        Log.i("FuturePaymentExample", authorization_code);
+
+                        sendAuthorizationToServer(auth);
+                        Toast.makeText(getApplicationContext(),
+                                "Future Payment code received from PayPal",
+                                Toast.LENGTH_LONG).show();
+
+                    } catch (JSONException e) {
+                        Log.e("FuturePaymentExample",
+                                "an extremely unlikely failure occurred: ", e);
+                    }
+                }
+            } else if (resultCode == Activity.RESULT_CANCELED) {
+                Log.i("FuturePaymentExample", "The user canceled.");
+            } else if (resultCode == PayPalFuturePaymentActivity.RESULT_EXTRAS_INVALID) {
+                Log.i("FuturePaymentExample",
+                        "Probably the attempt to previously start the PayPalService had an invalid PayPalConfiguration. Please see the docs.");
+            }
+        }
+    }
+
+
+    private void sendAuthorizationToServer(PayPalAuthorization authorization) {
+
+    }
+
+    public void onFuturePaymentPurchasePressed(View pressed) {
+        // Get the Application Correlation ID from the SDK
+        String correlationId = PayPalConfiguration
+                .getApplicationCorrelationId(this);
+
+        Log.i("FuturePaymentExample", "Application Correlation ID: "
+                + correlationId);
+
+        // processing with
+        // PayPal...
+        Toast.makeText(getApplicationContext(),
+                "App Correlation ID received from SDK", Toast.LENGTH_LONG)
+                .show();
+    }
+
+    @Override
+    public void onDestroy() {
+        // Stop service when done
+        stopService(new Intent(this, PayPalService.class));
+        super.onDestroy();
+    }
+
+
+    private void savePlanDetailsWithPayment(String transId, String paymentDetails, final String status) {
+        dialog2.show();
+        manager.apiInterface.memberĀpplicationForm(industrytype, mOrgname, mAka, mAnniDate, mMemberRecord, mPosition,
+                mAdr, mMailingAdr, mPhone, mFax, mEmail, mwebsite,
+                planId, transId, totalAmount, "USD",
+                status, paymentDetails).enqueue(new Callback<MemberApplicationModel>() {
+            @Override
+            public void onResponse(Call<MemberApplicationModel> call, Response<MemberApplicationModel> response) {
+                dialog2.dismiss();
+                if (response.isSuccessful()) {
+                    if (response.body().status.equals("success")) {
+                        //Toast.makeText(PlanActivity.this, "Thank you!", Toast.LENGTH_SHORT).show();
+                        //onBackPressed();
+                        Intent intent = new Intent(AuthorizationForm.this, ThankYou.class);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        Toast.makeText(AuthorizationForm.this, "Something went wrong.", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(AuthorizationForm.this, "Something went wrong.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<MemberApplicationModel> call, Throwable t) {
+                dialog2.dismiss();
+                Toast.makeText(AuthorizationForm.this, "Server not responding.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
+
+
+////////////////////////////////// in menifest]
+
+
+        <service
+            android:name="com.paypal.android.sdk.payments.PayPalService"
+            android:exported="false" />
+
+        <activity android:name="com.paypal.android.sdk.payments.PaymentActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.LoginActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.PaymentMethodActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.PaymentConfirmActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.PayPalFuturePaymentActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.FuturePaymentConsentActivity" />
+        <activity android:name="com.paypal.android.sdk.payments.FuturePaymentInfoActivity" />
+        <activity
+            android:name="io.card.payment.CardIOActivity"
+            android:configChanges="keyboardHidden|orientation" />
+        <activity android:name="io.card.payment.DataEntryActivity" /
+		
+		
+////////// Build gradle (app)
+
+implementation 'com.paypal.sdk:paypal-android-sdk:2.16.0'
