@@ -1,0 +1,77 @@
+//List
+
+private val getRvList = listOf(
+        Model("Raising Arizona", 1987, "raising_arizona.jpg"),
+        Model("Vampire's Kiss", 1988, "vampires_kiss.png"),
+        Model("Con Air", 1997, "con_air.jpg"),
+        Model("Face/Off", 1997, "face_off.jpg"),
+        Model("National Treasure", 2004, "national_treasure.jpg"),
+        Model("The Wicker Man", 2006, "wicker_man.jpg"),
+        Model("Bad Lieutenant", 2009, "bad_lieutenant.jpg"),
+        Model("Kick-Ass", 2010, "kickass.jpg")
+    )
+	
+	
+	//inside onCreate(){}
+	
+	
+			
+	list_recycler_view.apply {
+			//Vertical rv
+            layoutManager = LinearLayoutManager(activity)
+			
+			//for horizontal rv
+			layoutManager = LinearLayoutManager(activity, LinearLayoutManager.HORIZONTAL ,false)
+	
+            adapter = RvAdapter(getRvList)
+        }
+		
+		
+		///// Model
+		
+	data class Model(val title: String, val year: Int, val image: String)
+		
+
+	/////Adapter
+
+import android.view.LayoutInflater
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+
+class RvAdapter(private val list: List<Model>)
+    : RecyclerView.Adapter<RvViewHolder>() {
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RvViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        return RvViewHolder(inflater, parent)
+    }
+
+    override fun onBindViewHolder(holder: RvViewHolder, position: Int) {
+        val Model: Model = list[position]
+        holder.bind(Model)
+    }
+
+    override fun getItemCount(): Int = list.size
+
+}
+
+	/////ViewHolder
+	
+class RvViewHolder(inflater: LayoutInflater, parent: ViewGroup) :
+    RecyclerView.ViewHolder(inflater.inflate(R.layout.list_item, parent, false)) {
+    private var mTitleView: TextView? = null
+    private var mYearView: TextView? = null
+
+
+    init {
+        mTitleView = itemView.findViewById(R.id.list_title)
+        mYearView = itemView.findViewById(R.id.list_description)
+    }
+
+    fun bind(Model: Model) {
+        mTitleView?.text = Model.title
+        mYearView?.text = Model.year.toString()
+    }
+
+}

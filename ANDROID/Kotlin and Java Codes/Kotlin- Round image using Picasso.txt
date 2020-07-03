@@ -1,0 +1,8 @@
+val radius = 5
+Picasso.get()
+        .load(image)
+        .fit()        // to centerCrop, you have to do either resize() or fit()
+        .centerCrop() // to remove any possible white areas
+        .transform(RoundedCornersTransformation(radius, 0,
+                RoundedCornersTransformation.CornerType.TOP))
+        .into(imageView)

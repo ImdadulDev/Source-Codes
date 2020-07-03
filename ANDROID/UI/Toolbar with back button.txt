@@ -1,0 +1,15 @@
+<android.support.v7.widget.Toolbar
+    android:id="@+id/toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="?attr/actionBarSize"
+    app:navigationIcon="?attr/homeAsUpIndicator" />
+
+
+Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+
+    toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            // back button pressed
+        }
+    });
