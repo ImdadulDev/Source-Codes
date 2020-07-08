@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FA7000</color>
+    <color name="colorPrimaryDark">#EB6700</color>
+    <color name="colorAccent">#D81B60</color>
+
+    <color name="colorPrimarySndTheme">#C2185B</color>
+    <color name="colorPrimaryDarkSndTheme">#B90E53</color>
+    <color name="colorAccentSndTheme">#2E9FFF</color>
+
+    //Documented color
+    <color name="black">#000000</color>
+    <color name="blue_700">#2E9FFF</color>
+    <color name="blue_100">#D0E5FF</color>
+    <color name="blue_300">#A9CDFA</color>
+    <color name="white">#FFFFFF</color>
+    <color name="orange">#FA7000</color>
+    <color name="green_white">#7CB342</color>
+    <color name="purple_deep">#7B1FA2</color>
+    <color name="pink_deep">#C2185B</color>
+    <color name="black_500">#66000000</color>
+    <color name="black_700">#5C5C5C</color>
+    <color name="black_800">#4B4B4B</color>
+    <color name="login_btn">#49ABFF</color>
+
+
+    <color name="green_100">#007524</color>
+    <color name="green_light_70">#0FB843</color>
+    <color name="violet_deep">#542DA6</color>
+    <color name="grey_deep">#4E6773</color>
+    <color name="red_deep">#B51F1F</color>
+    <color name="grey_dark">#232E33</color>
+    <color name="magnato_dark">#B33C60</color>
+
+    
+	<color name="colorPrimarySndTheme">#C2185B</color>
+    <color name="colorPrimaryDarkSndTheme">#B90E53</color>
+    <color name="colorAccentSndTheme">#2E9FFF</color>
+
+    //Documented color
+    <color name="black">#000000</color>
+    <color name="blue_700">#2E9FFF</color>
+    <color name="blue_100">#D0E5FF</color>
+    <color name="blue_300">#A9CDFA</color>
+    <color name="white">#FFFFFF</color>
+    <color name="white_80">#BFFFFFFF</color>
+    <color name="orange">#FA7000</color>
+    <color name="green_white">#7CB342</color>
+    <color name="purple_deep">#7B1FA2</color>
+    <color name="pink_deep">#C2185B</color>
+    <color name="black_500">#66000000</color>
+    <color name="black_700">#5C5C5C</color>
+    <color name="black_800">#4B4B4B</color>
+    <color name="login_btn">#49ABFF</color>
+
+
+    <color name="green_100">#007524</color>
+    <color name="green_light_70">#0FB843</color>
+    <color name="green_cyan">#11D18E</color>
+    <color name="violet_deep">#542DA6</color>
+    <color name="grey_deep">#4E6773</color>
+    <color name="red_deep">#B51F1F</color>
+    <color name="grey_dark">#232E33</color>
+    <color name="magnato_dark">#B33C60</color>
+
+   
+
+    <color name="textColorDark">#3C3C3C</color>
+    <color name="textColorWhite">#ffffff</color>
+    <color name="textColorBlue">#1374d8</color>
+
+    <color name="cardViewBg">#ffffff</color>
+
+    <color name="imageTintWhite">#ffffff</color>
+    <color name="imageTintBlue">#1374d8</color>
+    <color name="imageTintGreyDark">#4E3E3E</color>
+    <color name="imageTintGrey_60">#757070</color>
+
+
+    <color name="reddish_grey_100">#B67D75</color>
+    <color name="reddish_grey_40">#C8AC98</color>
+    <color name="reddish_grey_10">#5EE3C1AB</color>
+    <color name="reddish_grey_deep_100">#330000</color>
+    <color name="grey_deep_80">#565656</color>
+    <color name="grey_deep_40">#857B74</color>
+    <color name="grey_deep_20">#A6A6A6</color>
+    <color name="reddish_grey_light_50">#B59C8A</color>
+
+</resources>

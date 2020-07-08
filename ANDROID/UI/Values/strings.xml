@@ -1,0 +1,57 @@
+<resources>
+    <string name="app_name">GHRA App</string>
+    <!--<string name="google_maps_key">AIzaSyA5HK6eKwWNRjpd7dCt8sFzVeZm2cdk7ao</string>-->
+    <string name="google_maps_key">AIzaSyAGkj5qQ7YAJxF-6AV3GCihkUpkAmHbOOg</string>
+    <string name="contact_info">CONTACT INFO</string>
+    <string name="submit">Submit</string>
+    <string name="desc">desc</string>
+    <string name="txt_lorem">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book</string>
+    <string name="txt_hyper_link">User Guide <a href="http://www.cleverfinger.com.au/user-guide/">http://www.cleverfinger.com.au/user-guide/</a></string>
+    <string name="covid_19">Covid-19 Update</string>
+    <string name="membership_application">Membership Application</string>
+    <string name="membership_benefits">Membership Benefits</string>
+    <string name="become_a_member">Become a member</string>
+    <string name="next">Next</string>
+    <string-array name="industry_type">
+        <item>Select Type</item>
+        <item>Hotels</item>
+        <item>Restaurants</item>
+        <item>Allied Members</item>
+        <item>Affiliates</item>
+    </string-array>
+
+    <string-array name="banner_type">
+        <item>Select Display Size</item>
+        <item>Half Size Banner</item>
+        <item>Full Width Banner</item>
+
+    </string-array>
+
+    <string-array name="member_type">
+        <item>Exhibitor</item>
+        <item>Visitor</item>
+
+    </string-array>
+
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="text_authorization">GHRA is an equal opportunity provider and employer. Complaints of discrimination should be sent to: USDA, Director, Office of Civil Rights, Washington, D.C. 20250-9410, or \ncall (202) 720-5964 (Voice and TDD).</string>
+    <string name="details">DETAILS</string>
+    <string name="bank_name">Bank Name</string>
+    <string name="check_number">Check Number</string>
+    <string name="check_date">Check Date</string>
+    <string name="payment">Payment</string>
+    <string name="cash">Cash</string>
+    <string name="check">Check</string>
+    <string name="payment_methods">PAYMENT METHODS</string>
+    <string name="payment_mode">Payment Mode:</string>
+    <string name="online">Online</string>
+    <string name="offline">Offline</string>
+    <string name="payment_type">Payment Type:</string>
+    <string name="cancel">Cancel</string>
+    <string name="history">History</string>
+    <string name="ghra_mission">GHRA Mission</string>
+    <string name="staff_login">Staff Login</string>
+    <string name="staff_list">Staff List</string>
+    <string name="bod_meetings">BOD Meetings</string>
+
+</resources>

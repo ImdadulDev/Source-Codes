@@ -1,0 +1,31 @@
+public boolean isCurrentDate(String date){
+        boolean isCurrentDate= true;
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+            Date todayDate = sdf.parse(getToday("yyyy-MM-dd"));
+            Date date2 = sdf.parse(date);
+
+           // System.out.println("date1 : " + sdf.format(date1));
+            //System.out.println("date2 : " + sdf.format(date2));
+            if (todayDate.compareTo(date2) > 0) {
+                //System.out.println("Date1 is after Date2");
+                isCurrentDate = false;
+            } else if (todayDate.compareTo(date2) < 0) {
+                isCurrentDate = true;
+            } else if (todayDate.compareTo(date2) == 0) {
+                //System.out.println("Date1 is equal to Date2");
+                isCurrentDate = true;
+            }
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+
+    return isCurrentDate;
+    }
+
+    public static String getToday(String format){
+        Date date = new Date();
+        return new SimpleDateFormat(format, Locale.US).format(date);
+    }
