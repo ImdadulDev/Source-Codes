@@ -21,6 +21,10 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 
+/////////////////////// For more extension fun- https://github.com/ravidsrk/kotlinextensions.com#string
+
+
+
 fun showSnackBar(
     context: Context,
     view: View,

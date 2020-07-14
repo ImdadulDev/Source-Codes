@@ -1,0 +1,3 @@
+Github: https://github.com/StylingAndroid/RecyclerViewAnimations/blob/Part1/app/src/main/java/com/stylingandroid/recyclerviewanimations/MyAdapter.kt
+
+Beatifully done in: Food App

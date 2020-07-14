@@ -1,0 +1,1 @@
+https://devdeeds.com/android-kotlin-listen-to-internet-connection-using-broadcastreceiver/

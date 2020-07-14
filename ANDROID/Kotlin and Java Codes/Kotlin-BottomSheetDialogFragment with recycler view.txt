@@ -1,0 +1,222 @@
+// How to use(Context needed to call from fragment)
+	private fun showBottomSheetDialogFragment() {
+        val bottomSheetFragment = BottomSheetFragment()
+        activity?.supportFragmentManager?.let { bottomSheetFragment.show(it, bottomSheetFragment.tag) }
+    }
+
+
+//Fragment class code:
+
+
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.android.food.R
+import com.android.food.ui.adapters.BottomSheetCartAdapter
+import com.android.food.util.getFoodList
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import kotlinx.android.synthetic.main.fragment_bottom_sheet_cart_layout.*
+
+
+class BottomSheetFragment : BottomSheetDialogFragment() {
+
+    private lateinit var bottomSheetBehavior: BottomSheetBehavior<ConstraintLayout>
+    private var fragmentView: View? = null
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        fragmentView = inflater.inflate(R.layout.fragment_bottom_sheet_cart_layout, container, false)
+        return fragmentView
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val rvBottomSheetCartView = view.findViewById<RecyclerView>(R.id.rvBottomSheetCartView)
+        rvBottomSheetCartView.apply {
+            layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL ,false)
+            adapter = BottomSheetCartAdapter(getFoodList())
+        }
+
+        initView(view)
+    }
+
+    private fun initView(view: View) {
+        val bottomSheetLayout = view.findViewById<ConstraintLayout>(R.id.bottom_sheet_layout)
+        bottomSheetBehavior = BottomSheetBehavior.from<ConstraintLayout>(bottomSheetLayout)
+		
+		//this two line to disable inside dragging of bottomsheetlayout. Becaase without this layout show white space above layout
+        bottomSheetBehavior.isDraggable = false
+        bottomSheetBehavior.isFitToContents = true
+
+        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+
+        bottomSheetBehavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                Log.d("----","slideOffset: $slideOffset")
+            }
+
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                Log.d("----","new state: $newState")
+                when (newState) {
+                    BottomSheetBehavior.STATE_COLLAPSED -> {
+                        //buttonSlideUp.text = "Slide Up"
+
+                    }
+                    BottomSheetBehavior.STATE_HIDDEN -> {
+
+                    }
+                    BottomSheetBehavior.STATE_EXPANDED -> {
+                        //buttonSlideUp.text = "Slide Down"
+                    }
+                    BottomSheetBehavior.STATE_DRAGGING -> {
+
+                    }
+                    BottomSheetBehavior.STATE_SETTLING -> {
+
+                    }
+                    BottomSheetBehavior.STATE_HALF_EXPANDED -> {
+
+                    }
+                }
+            }
+        })
+    }
+}
+
+
+/////// XML
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/bottom_sheet_root"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="5dp"
+        android:id="@+id/bottom_sheet_layout"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/constraintLayout2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+
+            <TextView
+                android:id="@+id/textView23"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="5dp"
+                android:text="DELIVERY AT "
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/tvUsername"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="5dp"
+                android:text="Sudeep"
+                android:textColor="@color/black"
+                android:textStyle="bold"
+                app:layout_constraintStart_toStartOf="@+id/textView23"
+                app:layout_constraintTop_toBottomOf="@+id/textView23" />
+
+            <TextView
+                android:id="@+id/tvDeliveryTime"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:paddingStart="5dp"
+                android:text="Delivery in 60 min with live tracking"
+                app:layout_constraintStart_toStartOf="@+id/tvUsername"
+                app:layout_constraintTop_toBottomOf="@+id/tvUsername" />
+
+            <TextView
+                android:id="@+id/tvAddress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" (Hotel Welcome Inn, 2nd...)"
+                android:textColor="@color/black"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@+id/tvUsername"
+                app:layout_constraintStart_toEndOf="@+id/tvUsername"
+                app:layout_constraintTop_toTopOf="@+id/tvUsername" />
+
+            <TextView
+                android:id="@+id/tvAddressChange"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Change"
+                android:textColor="@color/colorPrimary"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="@+id/tvAddress"
+                app:layout_constraintStart_toEndOf="@+id/tvAddress"
+                app:layout_constraintTop_toTopOf="@+id/tvAddress" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="300dp"
+            android:layout_marginBottom="@dimen/_8sdp"
+            app:layout_constraintBottom_toTopOf="@+id/textView21"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/constraintLayout2">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvBottomSheetCartView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="@dimen/_3sdp"
+                tools:itemCount="9"
+                tools:listitem="@layout/holder_layout_bottom_sheet_cart_layout" />
+
+
+        </LinearLayout>
+
+
+        <Button
+            android:id="@+id/btnAddPaymentMethod"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/ui_border_round_corner_grey_light_white_bg"
+            android:text="Add Payment Method"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+
+        <TextView
+            android:id="@+id/textView21"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/ui_bottom_border_grey_light"
+            android:fontFamily="@font/roboto_light"
+            android:padding="@dimen/_5sdp"
+            android:text="Add coocking instruction (optional)"
+            app:layout_constraintBottom_toTopOf="@+id/btnAddPaymentMethod"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
