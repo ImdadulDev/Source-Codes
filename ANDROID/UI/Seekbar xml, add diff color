@@ -1,0 +1,12 @@
+<androidx.appcompat.widget.AppCompatSeekBar
+                        android:id="@+id/seekBarReceiveAdapter"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="5dp"
+                        android:layout_marginEnd="5dp"
+                        android:gravity="center"
+                        android:thumbTint="@color/white"
+                        android:soundEffectsEnabled="true"
+                        android:progress="30"
+                        android:progressTint="@color/white"
+                        android:layout_gravity="center_vertical"/>

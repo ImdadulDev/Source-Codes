@@ -1,0 +1,1 @@
+github link: https://github.com/AndroidCodility/Multiple-Permissions/blob/master/app/src/main/java/com/codility/mpermissions/MainActivity.kt
